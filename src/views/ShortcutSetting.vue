@@ -59,58 +59,14 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { useUserStore } from '@/store/modules/user'
-import { defaultShortcuts, type ShortcutKey } from '@/utils/shortcuts'
-import { ref } from 'vue'
+import { useShortcuts } from '@/lib/shortcuts'
 
-const userStore = useUserStore()
-
-// 快捷键配置
-const shortcuts = ref(defaultShortcuts)
-
-// 快捷键修改相关
-const isDialogOpen = ref(false)
-const currentEditingShortcut = ref<ShortcutKey | ''>('')
-const recordingKeys = ref<string[]>([])
-
-// 开始修改快捷键
-const changeShortcut = (shortcutKey: string) => {
-    currentEditingShortcut.value = shortcutKey as ShortcutKey
-    recordingKeys.value = []
-    isDialogOpen.value = true
-    startRecording()
-}
-
-// 开始记录按键
-const startRecording = () => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-        e.preventDefault()
-        const key = e.key === ' ' ? 'Space' : e.key
-        if (!recordingKeys.value.includes(key)) {
-            recordingKeys.value.push(key)
-        }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', () => {
-        window.removeEventListener('keydown', handleKeyDown)
-    }, { once: true })
-}
-
-// 保存快捷键
-const saveShortcut = () => {
-    if (currentEditingShortcut.value && recordingKeys.value.length) {
-        shortcuts.value[currentEditingShortcut.value].keys = recordingKeys.value
-        userStore.setShortcut(currentEditingShortcut.value, recordingKeys.value)
-    }
-    closeDialog()
-}
-
-// 关闭对话框
-const closeDialog = () => {
-    isDialogOpen.value = false
-    currentEditingShortcut.value = ''
-    recordingKeys.value = []
-}
-
+const {
+    shortcuts,
+    isDialogOpen,
+    recordingKeys,
+    changeShortcut,
+    saveShortcut,
+    closeDialog
+} = useShortcuts()
 </script>
