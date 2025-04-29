@@ -39,6 +39,9 @@
                         </RadioGroup>
                     </div>
                 </div>
+
+                <!-- 快捷键设置 -->
+                <ShortcutSetting />
             </div>
         </div>
 
@@ -59,6 +62,7 @@ import { Select } from '@/components/ui/select'
 import { useUserStore } from '@/store/modules/user'
 import { SettingsIcon } from 'lucide-vue-next'
 import { computed } from 'vue'
+import ShortcutSetting from './ShortcutSetting.vue'
 
 const userStore = useUserStore()
 

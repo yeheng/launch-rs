@@ -36,11 +36,10 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -48,15 +47,27 @@ jobs:
         # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
       - name: install frontend dependencies
-        run: bun install # change this to npm, pnpm or bun depending on which one you use.
+        run: bun install
 
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: "App v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
+          tagName: v__VERSION__ # 简化标签名称
+          releaseName: "Release v__VERSION__"
+          releaseBody: |
+            launch-rs v__VERSION__ 发布说明
+            
+            ### 支持平台
+            - Windows
+            - macOS (Intel/Apple Silicon)
+            - Linux
+            
+            ### 下载
+            请在下方 Assets 中选择对应平台的安装包：
+            - Windows: `.msi`
+            - macOS: `.dmg`
+            - Linux: `.AppImage` 或 `.deb`
+          releaseDraft: false # 自动发布，不再是草稿状态
           prerelease: false
           args: ${{ matrix.args }}
