@@ -1,13 +1,8 @@
 // store/modules/user.ts
 // 用户状态管理模块
 
+import { defaultShortcuts, type ShortcutConfig } from '@/lib/shortcuts';
 import { defineStore } from 'pinia';
-
-// 定义快捷键类型
-interface Shortcut {
-    label: string;
-    keys: string[];
-}
 
 // 定义状态接口
 interface UserState {
@@ -19,7 +14,7 @@ interface UserState {
         language: string;
         gameMode: boolean;
         shortcuts: {
-            [key: string]: Shortcut;
+            [key: string]: ShortcutConfig;
         };
     };
 }
@@ -35,32 +30,7 @@ export const useUserStore = defineStore('user', {
             theme: 'system',
             language: 'zh-CN',
             gameMode: false,
-            shortcuts: {
-                toggleSearch: {
-                    label: '呼出搜索栏',
-                    keys: ['Alt', 'Space'],
-                },
-                navigateUp: {
-                    label: '向上选择',
-                    keys: ['↑'],
-                },
-                navigateDown: {
-                    label: '向下选择',
-                    keys: ['↓'],
-                },
-                launch: {
-                    label: '启动选中项',
-                    keys: ['Enter'],
-                },
-                adminLaunch: {
-                    label: '以管理员身份启动',
-                    keys: ['Ctrl', 'Enter'],
-                },
-                clearSearch: {
-                    label: '清空搜索',
-                    keys: ['Esc'],
-                },
-            },
+            shortcuts: defaultShortcuts,
         },
     }),
 
