@@ -1,8 +1,9 @@
 // store/modules/user.ts
 // 用户状态管理模块
 
-import { defaultShortcuts, type ShortcutConfig } from '@/lib/shortcuts';
+import { defaultShortcuts, type Shortcuts } from '@/lib/shortcuts';
 import { defineStore } from 'pinia';
+import { PersistenceOptions } from 'pinia-plugin-persistedstate';
 
 // 定义状态接口
 interface UserState {
@@ -12,10 +13,7 @@ interface UserState {
     preferences: {
         theme: 'light' | 'dark' | 'system';
         language: string;
-        gameMode: boolean;
-        shortcuts: {
-            [key: string]: ShortcutConfig;
-        };
+        shortcuts: Shortcuts;
     };
 }
 
@@ -29,7 +27,6 @@ export const useUserStore = defineStore('user', {
         preferences: {
             theme: 'system',
             language: 'zh-CN',
-            gameMode: false,
             shortcuts: defaultShortcuts,
         },
     }),
@@ -44,6 +41,9 @@ export const useUserStore = defineStore('user', {
 
         // 获取当前主题
         currentTheme: (state) => state.preferences.theme,
+
+        // 获取快捷键配置
+        currentShortcuts: (state) => state.preferences.shortcuts,
     },
 
     // 操作方法
@@ -72,19 +72,31 @@ export const useUserStore = defineStore('user', {
             this.preferences.language = language;
         },
 
-        // 设置游戏模式
-        setGameMode(enabled: boolean) {
-            this.preferences.gameMode = enabled;
-        },
-
         // 设置快捷键
-        setShortcut(shortcutKey: string, keys: string[]) {
+        setShortcut(shortcutKey: keyof Shortcuts, keys: string[]) {
             if (this.preferences.shortcuts[shortcutKey]) {
                 this.preferences.shortcuts[shortcutKey].keys = keys;
             }
         },
+
+        // 重置快捷键为默认值
+        resetShortcuts() {
+            this.preferences.shortcuts = { ...defaultShortcuts };
+        },
+
+        // 批量更新快捷键
+        updateShortcuts(shortcuts: Partial<Shortcuts>) {
+            this.preferences.shortcuts = {
+                ...this.preferences.shortcuts,
+                ...shortcuts,
+            };
+        },
     },
 
     // 持久化配置
-    persist: true,
+    persist: {
+        key: 'user-store',
+        storage: localStorage,
+        paths: ['preferences'],
+    } as PersistenceOptions,
 });
