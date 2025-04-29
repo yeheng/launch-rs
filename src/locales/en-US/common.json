@@ -1,0 +1,33 @@
+{
+  "app": {
+    "name": "ZeroLaunch",
+    "version": "v0.4.1"
+  },
+  "nav": {
+    "terminal": "Terminal",
+    "settings": "Settings",
+    "devHome": "Dev Home",
+    "assistant": "Quick Assistant"
+  },
+  "actions": {
+    "open": "Open",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+  "settings": {
+    "autoSave": "Settings will be saved automatically",
+    "theme": {
+      "title": "Theme Settings",
+      "light": "Light Theme",
+      "dark": "Dark Theme",
+      "system": "System Default"
+    },
+    "language": {
+      "title": "Language Settings",
+      "zh-CN": "简体中文",
+      "en-US": "English"
+    }
+  }
+} 

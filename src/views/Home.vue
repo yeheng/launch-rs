@@ -3,7 +3,7 @@
     <!-- 顶部栏 -->
     <header class="flex items-center px-4 py-3 border-b">
       <SearchIcon class="w-5 h-5 text-gray-400 mr-2" />
-      <h1 class="text-2xl text-gray-500 font-normal">Hello, ZeroLaunch!</h1>
+      <h1 class="text-2xl text-gray-500 font-normal">{{ t('app.name') }}</h1>
     </header>
 
     <!-- 主要内容 -->
@@ -12,14 +12,14 @@
       <div class="border-b">
         <div class="flex items-center px-4 py-3 hover:bg-gray-100 cursor-pointer" @click="openTerminal">
           <TerminalIcon class="w-5 h-5 mr-3 text-gray-700" />
-          <span class="text-base">终端</span>
+          <span class="text-base">{{ t('nav.terminal') }}</span>
         </div>
       </div>
 
       <div class="border-b">
         <div class="flex items-center px-4 py-3 hover:bg-gray-100 cursor-pointer" @click="navigateToSettings">
           <SettingsIcon class="w-5 h-5 mr-3 text-gray-700" />
-          <span class="text-base">设置</span>
+          <span class="text-base">{{ t('nav.settings') }}</span>
         </div>
       </div>
 
@@ -37,23 +37,23 @@
               />
             </svg>
           </div>
-          <span class="text-base font-medium">Dev Home</span>
+          <span class="text-base font-medium">{{ t('nav.devHome') }}</span>
         </div>
       </div>
 
       <div class="border-b">
         <div class="flex items-center px-4 py-3 hover:bg-gray-100 cursor-pointer" @click="openAssistant">
           <MessageSquareIcon class="w-5 h-5 mr-3 text-blue-600" />
-          <span class="text-base">快速助手</span>
+          <span class="text-base">{{ t('nav.assistant') }}</span>
         </div>
       </div>
     </div>
 
     <!-- 底部栏 -->
     <footer class="flex justify-between items-center px-4 py-2 border-t text-gray-500 text-sm">
-      <div>ZeroLaunch-rs v0.4.1</div>
+      <div>{{ t('app.name') }} {{ t('app.version') }}</div>
       <Button variant="ghost" class="text-gray-500 hover:text-gray-700" @click="toggleOpen">
-        {{ isOpen ? '关闭' : '打开' }}
+        {{ isOpen ? t('actions.close') : t('actions.open') }}
       </Button>
     </footer>
   </div>
@@ -63,9 +63,11 @@
 import { Button } from '@/components/ui/button'
 import { MessageSquareIcon, SearchIcon, SettingsIcon, TerminalIcon } from 'lucide-vue-next'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const { t } = useI18n()
 const isOpen = ref(true)
 
 const navigateToSettings = () => {

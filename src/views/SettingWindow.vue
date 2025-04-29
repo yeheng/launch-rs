@@ -3,7 +3,7 @@
         <!-- 顶部栏 -->
         <header class="flex items-center px-4 py-3 border-b">
             <SettingsIcon class="w-5 h-5 text-gray-400 mr-2" />
-            <h1 class="text-2xl text-gray-500 font-normal">设置</h1>
+            <h1 class="text-2xl text-gray-500 font-normal">{{ t('nav.settings') }}</h1>
         </header>
 
         <!-- 主要内容 -->
@@ -11,29 +11,29 @@
             <div class="max-w-2xl mx-auto space-y-8">
                 <!-- 主题设置 -->
                 <div class="space-y-4">
-                    <h2 class="text-lg font-medium">主题设置</h2>
+                    <h2 class="text-lg font-medium">{{ t('settings.theme.title') }}</h2>
                     <div class="flex items-center space-x-4">
                         <Select v-model="currentTheme">
-                            <option value="light">浅色主题</option>
-                            <option value="dark">深色主题</option>
-                            <option value="system">跟随系统</option>
+                            <option value="light">{{ t('settings.theme.light') }}</option>
+                            <option value="dark">{{ t('settings.theme.dark') }}</option>
+                            <option value="system">{{ t('settings.theme.system') }}</option>
                         </Select>
                     </div>
                 </div>
 
                 <!-- 语言设置 -->
                 <div class="space-y-4">
-                    <h2 class="text-lg font-medium">语言设置</h2>
+                    <h2 class="text-lg font-medium">{{ t('settings.language.title') }}</h2>
                     <div class="flex flex-col space-y-2">
                         <RadioGroup v-model="currentLanguage">
                             <div class="space-y-2">
                                 <div class="flex items-center space-x-2">
                                     <RadioGroupItem value="zh-CN" id="zh-CN" />
-                                    <Label for="zh-CN">简体中文</Label>
+                                    <Label for="zh-CN">{{ t('settings.language.zh-CN') }}</Label>
                                 </div>
                                 <div class="flex items-center space-x-2">
                                     <RadioGroupItem value="en-US" id="en-US" />
-                                    <Label for="en-US">English</Label>
+                                    <Label for="en-US">{{ t('settings.language.en-US') }}</Label>
                                 </div>
                             </div>
                         </RadioGroup>
@@ -47,9 +47,9 @@
 
         <!-- 底部栏 -->
         <footer class="flex justify-between items-center px-4 py-2 border-t text-gray-500 text-sm">
-            <div>ZeroLaunch-rs v0.4.1</div>
+            <div>{{ t('app.name') }} {{ t('app.version') }}</div>
             <div class="text-sm text-gray-500">
-                设置将自动保存
+                {{ t('settings.autoSave') }}
             </div>
         </footer>
     </div>
@@ -62,9 +62,11 @@ import { Select } from '@/components/ui/select'
 import { useUserStore } from '@/store/modules/user'
 import { SettingsIcon } from 'lucide-vue-next'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ShortcutSetting from './ShortcutSetting.vue'
 
 const userStore = useUserStore()
+const { t } = useI18n()
 
 // 主题设置
 const currentTheme = computed({
