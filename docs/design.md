@@ -121,6 +121,10 @@ fn greet(name: &str) -> String {
 
 [插件系统开发指南](./plugin.md)
 
+### 二进制优化
+
+[Rust二进制文件优化指南](./binary_tuning.md)
+
 ## 待完善模块
 
 1. 补充Rust模块的线程调度设计（当前main.rs仅调用库入口）
