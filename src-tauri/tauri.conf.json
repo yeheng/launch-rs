@@ -14,9 +14,13 @@
       {
         "title": "launch-rs",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "visible": true,
+        "decorations": true,
+        "transparent": false
       }
     ],
+    "withGlobalTauri": true,
     "security": {
       "csp": null
     }

@@ -47,6 +47,32 @@
           <span class="text-base">{{ t('nav.assistant') }}</span>
         </div>
       </div>
+
+      <!-- 测试无头模式 -->
+      <div class="border-b">
+        <div class="flex items-center px-4 py-3 hover:bg-gray-100 cursor-pointer" @click="testHeadlessMode">
+          <div class="w-5 h-5 mr-3 text-red-500">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" fill="none"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+              <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <span class="text-base">隐藏窗口 (无头模式)</span>
+        </div>
+      </div>
+
+      <div class="border-b">
+        <div class="flex items-center px-4 py-3 hover:bg-gray-100 cursor-pointer" @click="testShowMode">
+          <div class="w-5 h-5 mr-3 text-green-500">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" fill="none"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+            </svg>
+          </div>
+          <span class="text-base">显示窗口</span>
+        </div>
+      </div>
     </div>
 
     <!-- 底部栏 -->
@@ -93,5 +119,26 @@ const toggleOpen = () => {
   isOpen.value = !isOpen.value
   // TODO: 实现窗口开关功能
   console.log(isOpen.value ? '窗口已打开' : '窗口已关闭')
+}
+
+// 测试无头模式功能
+const testHeadlessMode = async () => {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    await invoke('toggle_headless', { headless: true })
+    console.log('已切换到无头模式')
+  } catch (error) {
+    console.error('切换无头模式失败:', error)
+  }
+}
+
+const testShowMode = async () => {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    await invoke('toggle_headless', { headless: false })
+    console.log('已切换到显示模式')
+  } catch (error) {
+    console.error('切换显示模式失败:', error)
+  }
 }
 </script> 
