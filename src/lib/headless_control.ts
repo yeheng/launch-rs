@@ -1,7 +1,7 @@
 // 无头窗口模式前端控制示例
 // 此文件展示如何在前端代码中控制Tauri窗口的无头模式
 
-import { Window } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 /**
  * 切换窗口的无头模式
@@ -12,13 +12,15 @@ export async function toggleHeadlessMode(headless: boolean): Promise<void> {
   try {
     if (headless) {
       // 启用无头模式：隐藏窗口并移除装饰
-      await Window.hide();
-      await Window.setDecorations(false);
+      const currentWindow = getCurrentWindow();
+      await currentWindow.hide();
+      await currentWindow.setDecorations(false);
       console.log('已启用无头模式');
     } else {
       // 禁用无头模式：显示窗口并添加装饰
-      await Window.setDecorations(true);
-      await Window.show();
+      const currentWindow = getCurrentWindow();
+      await currentWindow.setDecorations(true);
+      await currentWindow.show();
       console.log('已禁用无头模式');
     }
   } catch (error) {

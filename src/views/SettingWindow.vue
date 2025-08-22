@@ -14,9 +14,14 @@
                     <h2 class="text-lg font-medium">{{ t('settings.theme.title') }}</h2>
                     <div class="flex items-center space-x-4">
                         <Select v-model="currentTheme">
-                            <option value="light">{{ t('settings.theme.light') }}</option>
-                            <option value="dark">{{ t('settings.theme.dark') }}</option>
-                            <option value="system">{{ t('settings.theme.system') }}</option>
+                            <SelectTrigger class="w-48">
+                                <SelectValue :placeholder="t('settings.theme.title')" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="light">{{ t('settings.theme.light') }}</SelectItem>
+                                <SelectItem value="dark">{{ t('settings.theme.dark') }}</SelectItem>
+                                <SelectItem value="system">{{ t('settings.theme.system') }}</SelectItem>
+                            </SelectContent>
                         </Select>
                     </div>
                 </div>
@@ -58,7 +63,7 @@
 <script setup lang="ts">
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Select } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useUserStore } from '@/store/modules/user'
 import { SettingsIcon } from 'lucide-vue-next'
 import { computed } from 'vue'
