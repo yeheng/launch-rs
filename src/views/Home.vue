@@ -73,6 +73,21 @@
           <span class="text-base">显示窗口</span>
         </div>
       </div>
+
+      <!-- 测试全局快捷键功能 -->
+      <div class="border-b">
+        <div class="flex items-center px-4 py-3 hover:bg-gray-100 cursor-pointer" @click="testGlobalShortcut">
+          <div class="w-5 h-5 mr-3 text-orange-500">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/>
+              <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="2"/>
+              <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="2"/>
+              <path d="M7 10h2M7 13h2M15 10h2M15 13h2" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <span class="text-base">注册全局快捷键 (Alt+Space)</span>
+        </div>
+      </div>
     </div>
 
     <!-- 底部栏 -->
@@ -139,6 +154,22 @@ const testShowMode = async () => {
     console.log('已切换到显示模式')
   } catch (error) {
     console.error('切换显示模式失败:', error)
+  }
+}
+
+// 测试全局快捷键功能
+const testGlobalShortcut = async () => {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    await invoke('register_global_shortcut', {
+      shortcutId: 'toggle_window',
+      accelerator: 'Alt+Space'
+    })
+    console.log('全局快捷键 Alt+Space 注册成功！请在任意地方按下 Alt+Space 来切换窗口显示/隐藏')
+    alert('全局快捷键 Alt+Space 注册成功！请在任意地方按下 Alt+Space 来切换窗口显示/隐藏')
+  } catch (error) {
+    console.error('注册全局快捷键失败:', error)
+    alert('注册失败: ' + error)
   }
 }
 </script> 

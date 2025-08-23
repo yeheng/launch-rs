@@ -1,4 +1,5 @@
 import { useUserStore } from '@/store/modules/user'
+import { invoke } from '@tauri-apps/api/core'
 import { ref } from 'vue'
 
 // 快捷键类型定义
@@ -7,9 +8,59 @@ export type ShortcutKey = 'toggleSearch' | 'navigateUp' | 'navigateDown' | 'laun
 export interface ShortcutConfig {
     label: string
     keys: string[]
+    global?: boolean // 是否为全局快捷键
 }
 
 export type Shortcuts = Record<ShortcutKey, ShortcutConfig>
+
+// 将按键数组转换为Tauri快捷键格式
+function keysToAccelerator(keys: string[]): string {
+    return keys.map(key => {
+        // 转换特殊按键名称
+        switch (key) {
+            case 'Alt': return 'Alt'
+            case 'Ctrl': return 'Ctrl'
+            case 'Shift': return 'Shift'
+            case 'Meta': return 'Cmd' // macOS Command key
+            case 'Space': return 'Space'
+            case 'Enter': return 'Enter'
+            case 'Esc': return 'Escape'
+            case '↑': return 'ArrowUp'
+            case '↓': return 'ArrowDown'
+            case '←': return 'ArrowLeft'
+            case '→': return 'ArrowRight'
+            default: return key
+        }
+    }).join('+')
+}
+
+// 注册全局快捷键
+export async function registerGlobalShortcut(shortcutId: string, keys: string[]): Promise<boolean> {
+    try {
+        const accelerator = keysToAccelerator(keys)
+        await invoke('register_global_shortcut', {
+            shortcutId,
+            accelerator
+        })
+        console.log(`全局快捷键 ${shortcutId} (${accelerator}) 注册成功`)
+        return true
+    } catch (error) {
+        console.error(`注册全局快捷键失败:`, error)
+        return false
+    }
+}
+
+// 注销全局快捷键
+export async function unregisterGlobalShortcut(shortcutId: string): Promise<boolean> {
+    try {
+        await invoke('unregister_global_shortcut', { shortcutId })
+        console.log(`全局快捷键 ${shortcutId} 注销成功`)
+        return true
+    } catch (error) {
+        console.error(`注销全局快捷键失败:`, error)
+        return false
+    }
+}
 
 export function useShortcuts() {
     const userStore = useUserStore()
@@ -43,10 +94,23 @@ export function useShortcuts() {
     }
 
     // 保存快捷键
-    const saveShortcut = () => {
+    const saveShortcut = async () => {
         if (currentEditingShortcut.value && recordingKeys.value.length) {
-            shortcuts.value[currentEditingShortcut.value].keys = recordingKeys.value
-            userStore.setShortcut(currentEditingShortcut.value, recordingKeys.value)
+            const shortcutKey = currentEditingShortcut.value
+            const keys = recordingKeys.value
+            
+            // 更新本地配置
+            shortcuts.value[shortcutKey].keys = keys
+            userStore.setShortcut(shortcutKey, keys)
+            
+            // 如果是全局快捷键，则重新注册
+            const shortcutConfig = shortcuts.value[shortcutKey]
+            if (shortcutConfig.global) {
+                // 先注销旧的快捷键
+                await unregisterGlobalShortcut(shortcutKey)
+                // 再注册新的快捷键
+                await registerGlobalShortcut(shortcutKey, keys)
+            }
         }
         closeDialog()
     }
@@ -69,11 +133,25 @@ export function useShortcuts() {
     }
 }
 
+// 初始化全局快捷键
+export async function initializeGlobalShortcuts() {
+    const userStore = useUserStore()
+    const userShortcuts = userStore.preferences.shortcuts
+    
+    for (const [shortcutId, config] of Object.entries(userShortcuts)) {
+        const shortcutConfig = config as ShortcutConfig
+        if (shortcutConfig.global && shortcutConfig.keys.length > 0) {
+            await registerGlobalShortcut(shortcutId, shortcutConfig.keys)
+        }
+    }
+}
+
 // 默认快捷键配置
 export const defaultShortcuts: Shortcuts = {
     toggleSearch: {
         label: '呼出搜索栏',
         keys: ['Alt', 'Space'],
+        global: true, // 设置为全局快捷键
     },
     navigateUp: {
         label: '向上选择',
