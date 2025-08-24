@@ -3,11 +3,24 @@ use tauri::Manager;
 use tauri_plugin_global_shortcut::{Shortcut, GlobalShortcutExt};
 use std::collections::HashMap;
 use std::sync::{Mutex, LazyLock};
+use std::fs;
+use std::path::Path;
+use serde::{Deserialize, Serialize};
 
 // 用于存储已注册的快捷键
 static REGISTERED_SHORTCUTS: LazyLock<Mutex<HashMap<String, Shortcut>>> = LazyLock::new(|| {
     Mutex::new(HashMap::new())
 });
+
+// 文件搜索结果
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileSearchResult {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub size: u64,
+    pub modified: u64, // 时间戳
+}
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -90,6 +103,129 @@ fn unregister_global_shortcut(
     Ok(())
 }
 
+#[tauri::command]
+fn search_files(
+    query: String,
+    search_path: Option<String>,
+    max_results: Option<usize>,
+) -> Result<Vec<FileSearchResult>, String> {
+    let search_dir = search_path.unwrap_or_else(|| {
+        // 默认搜索用户主目录
+        dirs::home_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| "/".to_string())
+    });
+    
+    let max = max_results.unwrap_or(50);
+    let query_lower = query.to_lowercase();
+    
+    if query_lower.is_empty() {
+        return Ok(vec![]);
+    }
+    
+    let mut results = Vec::new();
+    
+    // 递归搜索文件
+    search_directory(&Path::new(&search_dir), &query_lower, &mut results, max, 0, 3)?;
+    
+    // 按文件名相关性排序
+    results.sort_by(|a, b| {
+        let a_score = calculate_relevance_score(&a.name.to_lowercase(), &query_lower);
+        let b_score = calculate_relevance_score(&b.name.to_lowercase(), &query_lower);
+        b_score.partial_cmp(&a_score).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    
+    Ok(results)
+}
+
+// 递归搜索目录
+fn search_directory(
+    dir: &Path,
+    query: &str,
+    results: &mut Vec<FileSearchResult>,
+    max_results: usize,
+    current_depth: usize,
+    max_depth: usize,
+) -> Result<(), String> {
+    if results.len() >= max_results || current_depth > max_depth {
+        return Ok(());
+    }
+    
+    let entries = fs::read_dir(dir)
+        .map_err(|e| format!("读取目录失败: {}", e))?;
+    
+    for entry in entries {
+        if results.len() >= max_results {
+            break;
+        }
+        
+        let entry = entry.map_err(|e| format!("读取文件项失败: {}", e))?;
+        let path = entry.path();
+        let file_name = path.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("");
+        
+        // 跳过隐藏文件和系统文件
+        if file_name.starts_with('.') || file_name.starts_with('~') {
+            continue;
+        }
+        
+        let file_name_lower = file_name.to_lowercase();
+        
+        // 检查文件名是否匹配查询
+        if file_name_lower.contains(query) {
+            let metadata = entry.metadata()
+                .map_err(|e| format!("读取文件元数据失败: {}", e))?;
+            
+            let modified = metadata.modified()
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            
+            results.push(FileSearchResult {
+                name: file_name.to_string(),
+                path: path.to_string_lossy().to_string(),
+                is_dir: metadata.is_dir(),
+                size: metadata.len(),
+                modified,
+            });
+        }
+        
+        // 递归搜索子目录
+        if path.is_dir() && current_depth < max_depth {
+            let _ = search_directory(&path, query, results, max_results, current_depth + 1, max_depth);
+        }
+    }
+    
+    Ok(())
+}
+
+// 计算相关性分数
+fn calculate_relevance_score(filename: &str, query: &str) -> f32 {
+    let mut score = 0.0;
+    
+    // 完全匹配得分最高
+    if filename == query {
+        score += 100.0;
+    }
+    // 前缀匹配
+    else if filename.starts_with(query) {
+        score += 80.0;
+    }
+    // 包含匹配
+    else if filename.contains(query) {
+        score += 60.0;
+    }
+    
+    // 文件名越短得分越高
+    if !filename.is_empty() {
+        score += 20.0 / filename.len() as f32;
+    }
+    
+    score
+}
+
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -101,7 +237,8 @@ pub fn run() {
             greet, 
             toggle_headless,
             register_global_shortcut,
-            unregister_global_shortcut
+            unregister_global_shortcut,
+            search_files
         ])
         .setup(|app| {
             // 从环境变量获取是否启用无头模式

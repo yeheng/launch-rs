@@ -71,6 +71,9 @@
 
                 <!-- 快捷键设置 -->
                 <ShortcutSetting />
+                
+                <!-- 插件设置 -->
+                <PluginSettings />
             </div>
         </div>
 
@@ -94,6 +97,7 @@ import { CheckIcon, SettingsIcon, XIcon } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import PluginSettings from './PluginSettings.vue'
 import ShortcutSetting from './ShortcutSetting.vue'
 
 const userStore = useUserStore()

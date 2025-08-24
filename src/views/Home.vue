@@ -24,11 +24,18 @@
         </div>
         
         <!-- 搜索结果 -->
-        <div v-if="searchResults.length > 0" class="search-results absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto z-10">
+        <div v-if="searchResults.length > 0 || isSearching" class="search-results absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto z-10">
+          <!-- 加载状态 -->
+          <div v-if="isSearching" class="flex items-center justify-center py-4 text-gray-500">
+            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
+            搜索中...
+          </div>
+          
+          <!-- 搜索结果 -->
           <div 
             v-for="(result, index) in searchResults" 
-            :key="index"
-            :class="['result-item flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer', { 'selected': index === selectedIndex }]"
+            :key="result.id"
+            :class="['result-item flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer', { 'selected': index === selectedIndex, 'bg-blue-50': index === selectedIndex }]"
             @click="selectResult(result)"
           >
             <div class="w-8 h-8 mr-3 flex items-center justify-center bg-gray-100 rounded">
@@ -38,6 +45,15 @@
               <div class="font-medium text-gray-900">{{ result.title }}</div>
               <div class="text-sm text-gray-500">{{ result.description }}</div>
             </div>
+            <!-- 插件来源标识 -->
+            <div class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+              {{ getPluginDisplayName(result.source) }}
+            </div>
+          </div>
+          
+          <!-- 无结果提示 -->
+          <div v-if="!isSearching && searchResults.length === 0 && searchQuery.trim()" class="px-4 py-3 text-gray-500 text-center">
+            未找到匹配的结果
           </div>
         </div>
       </div>
@@ -97,8 +113,10 @@
 
 <script setup lang="ts">
 import { Button } from '@/components/ui/button'
-import { FileIcon, FolderIcon, MessageSquareIcon, SearchIcon, SettingsIcon, TerminalIcon } from 'lucide-vue-next'
-import { nextTick, onMounted, ref } from 'vue'
+import { pluginManager, registerBuiltinPlugins } from '@/lib/plugins'
+import type { SearchResultItem } from '@/lib/search-plugins'
+import { SearchIcon, SettingsIcon } from 'lucide-vue-next'
+import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -109,71 +127,43 @@ const { t } = useI18n()
 const searchInput = ref<HTMLInputElement>()
 const searchQuery = ref('')
 const selectedIndex = ref(0)
-const searchResults = ref<Array<{
-  title: string
-  description: string
-  icon: any
-  action: () => void
-}>>([])
+const searchResults = ref<SearchResultItem[]>([])
+const isSearching = ref(false)
 
-// 模拟的搜索数据
-const searchData = [
-  {
-    title: '设置',
-    description: '打开应用设置',
-    icon: SettingsIcon,
-    keywords: ['设置', 'settings', 'config', '配置'],
-    action: () => router.push('/setting_window')
-  },
-  {
-    title: '终端',
-    description: '打开系统终端',
-    icon: TerminalIcon,
-    keywords: ['终端', 'terminal', 'cmd', '命令行'],
-    action: () => openTerminal()
-  },
-  {
-    title: '助手',
-    description: '打开快速助手',
-    icon: MessageSquareIcon,
-    keywords: ['助手', 'assistant', 'help', '帮助'],
-    action: () => openAssistant()
-  },
-  {
-    title: '注册全局快捷键',
-    description: '注册 Alt+Space 全局快捷键',
-    icon: FolderIcon,
-    keywords: ['快捷键', 'shortcut', 'hotkey', '全局'],
-    action: () => testGlobalShortcut()
-  },
-  {
-    title: '隐藏窗口',
-    description: '切换到无头模式',
-    icon: FileIcon,
-    keywords: ['隐藏', 'hide', '无头', 'headless'],
-    action: () => testHeadlessMode()
-  }
-]
+// 搜索防抖
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+const SEARCH_DEBOUNCE = 300 // 300ms 防抖
 
 // 搜索函数
 const handleSearch = () => {
-  const query = searchQuery.value.toLowerCase().trim()
-  
-  if (!query) {
-    searchResults.value = []
-    selectedIndex.value = 0
-    return
+  // 清除之前的定时器
+  if (searchTimer) {
+    clearTimeout(searchTimer)
   }
   
-  searchResults.value = searchData.filter(item => {
-    const titleMatch = item.title.toLowerCase().includes(query)
-    const descMatch = item.description.toLowerCase().includes(query)
-    const keywordMatch = item.keywords.some(keyword => keyword.toLowerCase().includes(query))
+  // 设置新的定时器
+  searchTimer = setTimeout(async () => {
+    const query = searchQuery.value.trim()
     
-    return titleMatch || descMatch || keywordMatch
-  })
-  
-  selectedIndex.value = 0
+    if (!query) {
+      searchResults.value = []
+      selectedIndex.value = 0
+      isSearching.value = false
+      return
+    }
+    
+    try {
+      isSearching.value = true
+      const results = await pluginManager.search(query, 20) // 限制20个结果
+      searchResults.value = results
+      selectedIndex.value = 0
+    } catch (error) {
+      console.error('搜索失败:', error)
+      searchResults.value = []
+    } finally {
+      isSearching.value = false
+    }
+  }, SEARCH_DEBOUNCE)
 }
 
 // 键盘事件处理
@@ -210,28 +200,21 @@ const handleKeydown = (event: KeyboardEvent) => {
 }
 
 // 选择结果
-const selectResult = (result: any) => {
-  result.action()
-  // 清空搜索
-  searchQuery.value = ''
-  searchResults.value = []
-  selectedIndex.value = 0
+const selectResult = async (result: SearchResultItem) => {
+  try {
+    await result.action()
+    // 清空搜索（可选）
+    searchQuery.value = ''
+    searchResults.value = []
+    selectedIndex.value = 0
+  } catch (error) {
+    console.error('执行操作失败:', error)
+  }
 }
 
 // 导航到设置页面
 const navigateToSettings = () => {
   router.push('/setting_window')
-}
-
-// 其他功能函数
-const openTerminal = () => {
-  console.log('打开终端')
-  // TODO: 实现终端功能
-}
-
-const openAssistant = () => {
-  console.log('打开快速助手')
-  // TODO: 实现快速助手功能
 }
 
 // 测试全局快捷键功能
@@ -248,24 +231,60 @@ const testGlobalShortcut = async () => {
   }
 }
 
-// 测试无头模式功能
-const testHeadlessMode = async () => {
-  try {
-    const { invoke } = await import('@tauri-apps/api/core')
-    await invoke('toggle_headless', { headless: true })
-    console.log('已切换到无头模式')
-  } catch (error) {
-    console.error('切换无头模式失败:', error)
-  }
+// 获取插件显示名称
+const getPluginDisplayName = (pluginId: string): string => {
+  const plugin = pluginManager.getPlugin(pluginId)
+  return plugin ? plugin.name : pluginId
 }
 
-// 组件挂载后聚焦搜索框
+// 插件管理器事件监听
+const onSearchStart = (query: string) => {
+  console.log(`开始搜索: ${query}`)
+}
+
+const onSearchResults = (results: SearchResultItem[]) => {
+  console.log(`搜索完成，获得 ${results.length} 个结果`)
+}
+
+const onSearchEnd = (query: string, resultCount: number) => {
+  console.log(`搜索结束: "${query}" -> ${resultCount} 个结果`)
+}
+
+// 组件挂载和卸载
 onMounted(async () => {
-  await nextTick()
-  if (searchInput.value) {
-    searchInput.value.focus()
+  try {
+    // 注册内置插件
+    await registerBuiltinPlugins()
+    
+    // 监听插件管理器事件
+    pluginManager.on('search:start', onSearchStart)
+    pluginManager.on('search:results', onSearchResults)
+    pluginManager.on('search:end', onSearchEnd)
+    
+    // 聚焦搜索框
+    await nextTick()
+    if (searchInput.value) {
+      searchInput.value.focus()
+    }
+    
+    console.log('搜索插件系统初始化完成')
+  } catch (error) {
+    console.error('初始化搜索插件系统失败:', error)
   }
 })
+
+onUnmounted(() => {
+  // 清理事件监听器
+  pluginManager.off('search:start', onSearchStart)
+  pluginManager.off('search:results', onSearchResults)
+  pluginManager.off('search:end', onSearchEnd)
+  
+  // 清理定时器
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+})
+
 </script>
 
 <style scoped>
