@@ -140,18 +140,18 @@ const handleCancel = () => {
 }
 
 // 主题设置（保留兼容性，但实际不再使用）
-const currentTheme = computed({
-    get: () => userStore.preferences.theme,
-    set: (value: 'light' | 'dark' | 'system') => {
-        userStore.setTheme(value)
-    }
-})
+// const currentTheme = computed({
+//     get: () => userStore.preferences.theme,
+//     set: (value: 'light' | 'dark' | 'system') => {
+//         userStore.setTheme(value)
+//     }
+// })
 
 // 语言设置（保留兼容性，但实际不再使用）
-const currentLanguage = computed({
-    get: () => userStore.preferences.language,
-    set: (value: string) => {
-        userStore.setLanguage(value)
-    }
-})
+// const currentLanguage = computed({
+//     get: () => userStore.preferences.language,
+//     set: (value: string) => {
+//         userStore.setLanguage(value)
+//     }
+// })
 </script>

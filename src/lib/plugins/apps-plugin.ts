@@ -175,7 +175,7 @@ export class AppsSearchPlugin implements SearchPlugin {
 
   private async openTerminal(): Promise<void> {
     try {
-      const { invoke } = await import('@tauri-apps/api/core')
+    //   const { invoke } = await import('@tauri-apps/api/core')
       // 这里可以调用系统命令打开终端
       console.log('打开终端功能待实现')
     } catch (error) {
