@@ -120,3 +120,18 @@ export function getCurrentPluginConfig(): PluginConfig {
 
 // 导出插件管理器实例
 export { pluginManager }
+
+// 导出插件管理服务
+export { pluginManagementService } from './plugin-management-service'
+
+// 导出状态管理
+export { usePluginStateStore, pluginStateListener } from './plugin-state-manager'
+
+// 导出统计管理
+export { pluginStatisticsManager, usePluginStatistics } from './plugin-statistics'
+
+// 导出类型
+export * from './types'
+
+// 导出演示功能
+export { demoPluginStateManagement, testStatePersistence } from './plugin-state-demo'

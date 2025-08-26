@@ -28,6 +28,14 @@
       "title": "Language Settings",
       "zh-CN": "简体中文",
       "en-US": "English"
+    },
+    "plugins": {
+      "title": "Plugin Settings",
+      "management": {
+        "title": "Plugin Management",
+        "description": "Manage installed plugins, configure settings, and install new plugins",
+        "button": "Manage Plugins"
+      }
     }
   }
 } 

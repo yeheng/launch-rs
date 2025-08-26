@@ -74,6 +74,26 @@
                 
                 <!-- 插件设置 -->
                 <PluginSettings />
+                
+                <!-- 插件管理 -->
+                <div class="space-y-4">
+                    <h2 class="text-lg font-medium">{{ t('settings.plugins.title') }}</h2>
+                    <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                        <div>
+                            <h3 class="font-medium text-gray-900">{{ t('settings.plugins.management.title') }}</h3>
+                            <p class="text-sm text-gray-500">{{ t('settings.plugins.management.description') }}</p>
+                        </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            @click="navigateToPluginManagement"
+                            class="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                        >
+                            <SettingsIcon class="w-4 h-4 mr-1" />
+                            {{ t('settings.plugins.management.button') }}
+                        </Button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -137,6 +157,11 @@ const handleCancel = () => {
     
     // 跳转回搜索界面
     router.push('/')
+}
+
+// 导航到插件管理页面
+const navigateToPluginManagement = () => {
+    router.push('/plugins')
 }
 
 // 主题设置（保留兼容性，但实际不再使用）

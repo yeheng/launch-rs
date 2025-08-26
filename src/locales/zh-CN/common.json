@@ -28,6 +28,14 @@
       "title": "语言设置",
       "zh-CN": "简体中文",
       "en-US": "English"
+    },
+    "plugins": {
+      "title": "插件设置",
+      "management": {
+        "title": "插件管理",
+        "description": "管理已安装的插件，配置设置，并安装新插件",
+        "button": "管理插件"
+      }
     }
   }
 } 

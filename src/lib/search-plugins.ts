@@ -84,7 +84,7 @@ export interface PluginSettingSchema {
   /** 配置项描述 */
   description?: string
   /** 配置项类型 */
-  type: 'boolean' | 'string' | 'number' | 'select'
+  type: 'boolean' | 'string' | 'number' | 'select' | 'multiselect' | 'file' | 'directory'
   /** 默认值 */
   defaultValue: any
   /** select类型的选项 */
@@ -105,6 +105,8 @@ export interface PluginManagerEvents {
   'plugin:enabled': (pluginId: string) => void
   /** 插件禁用时触发 */
   'plugin:disabled': (pluginId: string) => void
+  /** 插件配置时触发 */
+  'plugin:configured': (pluginId: string, config: Record<string, any>) => void
   /** 搜索开始时触发 */
   'search:start': (query: string) => void
   /** 搜索结果时触发 */

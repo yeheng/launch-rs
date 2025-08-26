@@ -96,6 +96,24 @@
           </div>
         </Button>
         
+        <!-- 插件管理按钮 -->
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          class="footer-button text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          @click="navigateToPlugins"
+          title="插件管理"
+        >
+          <div class="w-4 h-4">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/>
+              <circle cx="9" cy="9" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
+              <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L13 14" stroke="currentColor" stroke-width="2"/>
+              <path d="M21 21l-6-6" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+        </Button>
+        
         <!-- 设置按钮 -->
         <Button 
           variant="ghost" 
@@ -215,6 +233,11 @@ const selectResult = async (result: SearchResultItem) => {
 // 导航到设置页面
 const navigateToSettings = () => {
   router.push('/setting_window')
+}
+
+// 导航到插件管理页面
+const navigateToPlugins = () => {
+  router.push('/plugins')
 }
 
 // 测试全局快捷键功能
