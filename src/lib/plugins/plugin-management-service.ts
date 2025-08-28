@@ -15,6 +15,9 @@ import {
 import { PluginValidator, PluginUtils } from './types'
 import { usePluginStateStore } from './plugin-state-manager'
 import { pluginStatisticsManager } from './plugin-statistics'
+import { pluginCache, CacheKeys, cached } from './performance-cache'
+import { performanceMonitor, MetricType, monitored } from './performance-monitor'
+import { pluginLazyLoader } from './lazy-loader'
 
 /**
  * Plugin management error types
@@ -260,10 +263,21 @@ export class PluginManagementService {
   /**
    * Get all installed plugins as enhanced plugins
    */
+  @cached(2 * 60 * 1000) // Cache for 2 minutes
+  @monitored('get-installed-plugins')
   async getInstalledPlugins(): Promise<EnhancedSearchPlugin[]> {
     try {
       const plugins = pluginManager.getPlugins()
-      return plugins.map(plugin => this.enhancePlugin(plugin))
+      const enhanced = plugins.map(plugin => this.enhancePlugin(plugin))
+      
+      // Record performance metrics
+      performanceMonitor.recordMetric(
+        MetricType.OPERATION_TIME,
+        'enhance-plugins',
+        performance.now()
+      )
+      
+      return enhanced
     } catch (error) {
       throw new PluginManagementError(
         PluginManagementErrorType.PLUGIN_NOT_FOUND,
@@ -296,20 +310,34 @@ export class PluginManagementService {
   }
 
   /**
-   * Search and filter plugins
+   * Search and filter plugins with caching and performance monitoring
    */
+  @monitored('search-plugins')
   async searchPlugins(options: PluginSearchOptions = {}): Promise<EnhancedSearchPlugin[]> {
     try {
+      // Check cache first
+      const cacheKey = CacheKeys.pluginSearch(options.query || '', options)
+      const cached = pluginCache.get<EnhancedSearchPlugin[]>(cacheKey)
+      if (cached) {
+        performanceMonitor.recordMetric(MetricType.CACHE_HIT_RATE, 'plugin-search-cache', 1)
+        return cached
+      }
+
+      performanceMonitor.recordMetric(MetricType.CACHE_HIT_RATE, 'plugin-search-cache', 0)
+      
+      const searchStartTime = performance.now()
       let plugins = await this.getInstalledPlugins()
 
-      // Apply filters
+      // Apply filters with performance monitoring
       if (options.query) {
         const query = options.query.toLowerCase()
-        plugins = plugins.filter(plugin =>
-          plugin.name.toLowerCase().includes(query) ||
-          plugin.description.toLowerCase().includes(query) ||
-          plugin.metadata.keywords.some(keyword => keyword.toLowerCase().includes(query))
-        )
+        plugins = performanceMonitor.measure('filter-by-query', () => {
+          return plugins.filter(plugin =>
+            plugin.name.toLowerCase().includes(query) ||
+            plugin.description.toLowerCase().includes(query) ||
+            plugin.metadata.keywords.some(keyword => keyword.toLowerCase().includes(query))
+          )
+        })
       }
 
       if (options.category !== undefined) {
@@ -324,43 +352,45 @@ export class PluginManagementService {
         plugins = plugins.filter(plugin => plugin.installation.isInstalled === options.installed)
       }
 
-      // Apply sorting
+      // Apply sorting with performance monitoring
       if (options.sortBy) {
-        plugins.sort((a, b) => {
-          let aValue: any, bValue: any
+        plugins = performanceMonitor.measure('sort-plugins', () => {
+          return plugins.sort((a, b) => {
+            let aValue: any, bValue: any
 
-          switch (options.sortBy) {
-            case 'name':
-              aValue = a.name.toLowerCase()
-              bValue = b.name.toLowerCase()
-              break
-            case 'category':
-              aValue = a.metadata.category
-              bValue = b.metadata.category
-              break
-            case 'installDate':
-              aValue = a.metadata.installDate.getTime()
-              bValue = b.metadata.installDate.getTime()
-              break
-            case 'lastUpdated':
-              aValue = a.metadata.lastUpdated.getTime()
-              bValue = b.metadata.lastUpdated.getTime()
-              break
-            case 'rating':
-              aValue = a.metadata.rating || 0
-              bValue = b.metadata.rating || 0
-              break
-            case 'downloadCount':
-              aValue = a.metadata.downloadCount || 0
-              bValue = b.metadata.downloadCount || 0
-              break
-            default:
-              return 0
-          }
+            switch (options.sortBy) {
+              case 'name':
+                aValue = a.name.toLowerCase()
+                bValue = b.name.toLowerCase()
+                break
+              case 'category':
+                aValue = a.metadata.category
+                bValue = b.metadata.category
+                break
+              case 'installDate':
+                aValue = a.metadata.installDate.getTime()
+                bValue = b.metadata.installDate.getTime()
+                break
+              case 'lastUpdated':
+                aValue = a.metadata.lastUpdated.getTime()
+                bValue = b.metadata.lastUpdated.getTime()
+                break
+              case 'rating':
+                aValue = a.metadata.rating || 0
+                bValue = b.metadata.rating || 0
+                break
+              case 'downloadCount':
+                aValue = a.metadata.downloadCount || 0
+                bValue = b.metadata.downloadCount || 0
+                break
+              default:
+                return 0
+            }
 
-          if (aValue < bValue) return options.sortOrder === 'desc' ? 1 : -1
-          if (aValue > bValue) return options.sortOrder === 'desc' ? -1 : 1
-          return 0
+            if (aValue < bValue) return options.sortOrder === 'desc' ? 1 : -1
+            if (aValue > bValue) return options.sortOrder === 'desc' ? -1 : 1
+            return 0
+          })
         })
       }
 
@@ -371,6 +401,13 @@ export class PluginManagementService {
       if (options.limit) {
         plugins = plugins.slice(0, options.limit)
       }
+
+      // Record search performance
+      const searchTime = performance.now() - searchStartTime
+      performanceMonitor.recordMetric(MetricType.SEARCH_LATENCY, 'plugin-search', searchTime)
+
+      // Cache the results
+      pluginCache.set(cacheKey, plugins, 2 * 60 * 1000) // Cache for 2 minutes
 
       return plugins
     } catch (error) {
@@ -386,10 +423,17 @@ export class PluginManagementService {
   }
 
   /**
-   * Get plugin details by ID
+   * Get plugin details by ID with lazy loading
    */
   async getPluginDetails(pluginId: string): Promise<EnhancedSearchPlugin> {
     try {
+      // Try lazy loader first
+      const lazyLoaded = await pluginLazyLoader.loadPluginDetails(pluginId)
+      if (lazyLoaded) {
+        return lazyLoaded
+      }
+
+      // Fallback to direct loading
       const plugin = pluginManager.getPlugin(pluginId)
       if (!plugin) {
         throw new PluginManagementError(
@@ -402,7 +446,16 @@ export class PluginManagementService {
         )
       }
 
-      return this.enhancePlugin(plugin)
+      const enhanced = this.enhancePlugin(plugin)
+      
+      // Record performance
+      performanceMonitor.recordMetric(
+        MetricType.PLUGIN_LOAD_TIME,
+        `plugin-details-${pluginId}`,
+        performance.now()
+      )
+
+      return enhanced
     } catch (error) {
       if (error instanceof PluginManagementError) {
         throw error

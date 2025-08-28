@@ -362,8 +362,62 @@
           </div>
         </div>
 
-        <!-- Plugin Cards -->
+        <!-- Plugin Cards with Virtual Scrolling -->
+        <VirtualScrollList
+          v-if="plugins.length > virtualScrollThreshold"
+          :items="plugins"
+          :item-height="pluginCardHeight"
+          container-height="600px"
+          :buffer="5"
+          :is-loading="isLoading"
+          :get-item-key="(plugin) => plugin.id"
+          aria-label="Plugin list (virtual scroll)"
+          :enable-monitoring="true"
+          @scroll="handleVirtualScroll"
+          @visible-range-change="handleVisibleRangeChange"
+          @load-more="handleLoadMore"
+        >
+          <template #default="{ item: plugin, index }">
+            <div class="p-2">
+              <PluginCard
+                :key="plugin.id"
+                :plugin="plugin"
+                :show-details="true"
+                :show-status="true"
+                :is-loading="loadingPlugins.has(plugin.id)"
+                :search-query="searchQuery"
+                @toggle-enabled="handleToggleEnabled"
+                @configure="handleConfigure"
+                @uninstall="handleUninstall"
+                @view-details="handleViewDetails"
+              />
+            </div>
+          </template>
+          
+          <template #loading>
+            <div class="flex items-center justify-center py-8">
+              <LoadingSpinner size="lg" variant="primary" :show-label="true" label="Loading plugins..." />
+            </div>
+          </template>
+          
+          <template #empty>
+            <div class="flex flex-col items-center justify-center py-12 text-gray-500">
+              <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <PluginIcon class="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">
+                {{ getEmptyStateTitle() }}
+              </h3>
+              <p class="text-gray-500 mb-4 max-w-md mx-auto">
+                {{ getEmptyStateMessage() }}
+              </p>
+            </div>
+          </template>
+        </VirtualScrollList>
+
+        <!-- Regular Grid for Small Lists -->
         <div 
+          v-else
           class="grid gap-4 md:grid-cols-2 lg:grid-cols-3" 
           role="grid" 
           aria-label="Plugin list"
@@ -556,6 +610,7 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { ToastContainer, useToast } from '@/components/ui/toast'
 import { LoadingSpinner, LoadingOverlay, LoadingSkeleton } from '@/components/ui/loading'
+import { VirtualScrollList } from '@/components/ui/virtual-scroll'
 import PluginCard from '@/components/PluginCard.vue'
 import PluginSettingsDialog from '@/components/PluginSettingsDialog.vue'
 import PluginUninstallDialog from '@/components/PluginUninstallDialog.vue'
@@ -575,12 +630,25 @@ import { PluginUtils } from '@/lib/plugins/types'
 import { usePluginStateStore, pluginStateListener } from '@/lib/plugins/plugin-state-manager'
 import { usePluginStatistics } from '@/lib/plugins/plugin-statistics'
 import { pluginErrorHandler, withPluginErrorHandling } from '@/lib/plugins/plugin-error-handler'
+import { performanceMonitor, MetricType } from '@/lib/plugins/performance-monitor'
+import { pluginCache } from '@/lib/plugins/performance-cache'
+import { usePluginLazyLoading } from '@/lib/plugins/lazy-loader'
 
 const { breadcrumbItems, navigateHome } = useNavigation()
 
 // State management
 const pluginStateStore = usePluginStateStore()
 const { getStatistics, getHealthSummary, getUsageTrends, getRecommendations } = usePluginStatistics()
+
+// Performance optimizations
+const { 
+  loadPluginDetails, 
+  loadPluginMetadata, 
+  preloadDetails, 
+  preloadMetadata,
+  getDetailsState,
+  getStatistics: getLazyLoadStats
+} = usePluginLazyLoading()
 
 // Toast notifications
 const { 
@@ -636,6 +704,21 @@ const isUninstallLoading = ref(false)
 let searchDebounceTimer: NodeJS.Timeout | null = null
 const lastOperation = ref<(() => Promise<void>) | null>(null)
 
+// Debounced search with performance monitoring
+const debouncedSearch = () => {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+  
+  searchDebounceTimer = setTimeout(() => {
+    performanceMonitor.measureAsync('debounced-search', async () => {
+      await loadPlugins()
+    }).catch(error => {
+      console.error('Debounced search failed:', error)
+    })
+  }, 300)
+}
+
 // Search suggestions state
 const showSearchSuggestions = ref(false)
 const searchSuggestions = ref<string[]>([])
@@ -645,6 +728,12 @@ const availableSearchTerms = ref<string[]>([
   'search', 'productivity', 'utilities', 'development', 'system',
   'file', 'calculator', 'weather', 'notes', 'text', 'network'
 ])
+
+// Performance optimization settings
+const virtualScrollThreshold = ref(20) // Use virtual scrolling for lists with more than 20 items
+const pluginCardHeight = ref(200) // Estimated height of each plugin card in pixels
+const visibleRange = ref({ start: 0, end: 0 })
+const preloadBatchSize = ref(10)
 
 // Computed properties
 const availableCategories = computed(() => {
@@ -667,10 +756,37 @@ const hasActiveFilters = computed(() => {
   return !!(searchQuery.value || selectedCategory.value || statusFilter.value)
 })
 
+// Performance monitoring methods
+const handleVirtualScroll = (scrollTop: number, scrollLeft: number) => {
+  // Record scroll performance
+  performanceMonitor.recordMetric(MetricType.RENDER_TIME, 'virtual-scroll', performance.now())
+}
+
+const handleVisibleRangeChange = (start: number, end: number) => {
+  visibleRange.value = { start, end }
+  
+  // Preload plugin details for visible items
+  const visiblePlugins = plugins.value.slice(start, end)
+  const pluginIds = visiblePlugins.map(p => p.id)
+  
+  // Preload in background
+  preloadMetadata(pluginIds).catch(error => {
+    console.warn('Failed to preload plugin metadata:', error)
+  })
+}
+
+const handleLoadMore = () => {
+  // This could be used for infinite scrolling if needed
+  console.log('Load more requested')
+}
+
 // Methods
 const loadPlugins = async () => {
   isLoading.value = true
   error.value = null
+  
+  // Record memory usage before loading
+  performanceMonitor.recordMemoryUsage('before-plugin-load')
   
   // Show loading toast for long operations
   const loadingToastId = showLoadingToast('Loading plugins...', {
@@ -703,9 +819,93 @@ const loadPlugins = async () => {
     }
     
     const result = await withPluginErrorHandling('plugin-management', async () => {
-      return await pluginManagementService.searchPlugins(searchOptions)
+      return await performanceMonitor.measureAsync('load-plugins-operation', async () => {
+        return await pluginManagementService.searchPlugins(searchOptions)
+      })
     })
+
+    plugins.value = result
     
+    // Update statistics
+    statistics.value = await pluginManagementService.getPluginStatistics()
+    
+    // Record cache performance
+    const cacheStats = pluginCache.getStatistics()
+    performanceMonitor.recordCachePerformance(cacheStats.hitRate, cacheStats.totalHits + cacheStats.totalMisses)
+    
+    // Record memory usage after loading
+    performanceMonitor.recordMemoryUsage('after-plugin-load')
+    
+    // Preload details for first batch of plugins
+    if (result.length > 0) {
+      const firstBatch = result.slice(0, preloadBatchSize.value).map(p => p.id)
+      preloadDetails(firstBatch).catch(error => {
+        console.warn('Failed to preload plugin details:', error)
+      })
+    }
+    
+    // Update toast
+    updateToast(loadingToastId, {
+      type: 'success',
+      title: 'Plugins Loaded',
+      message: `Loaded ${result.length} plugins successfully`,
+      duration: 2000
+    })
+  } catch (err) {
+    console.error('Failed to load plugins:', err)
+    
+    if (err instanceof PluginManagementError) {
+      error.value = err
+      pluginError(err.getUserFriendlyMessage(), {
+        title: 'Plugin Loading Error',
+        action: err.recoverable ? {
+          label: 'Retry',
+          handler: () => loadPlugins()
+        } : undefined
+      })
+    } else {
+      const genericError = new PluginManagementError(
+        PluginManagementErrorType.PLUGIN_NOT_FOUND,
+        'An unexpected error occurred while loading plugins',
+        err instanceof Error ? err.message : 'Unknown error',
+        undefined,
+        true,
+        'Please try refreshing the page'
+      )
+      error.value = genericError
+      pluginError(genericError.getUserFriendlyMessage())
+    }
+    
+    // Update toast to show error
+    updateToast(loadingToastId, {
+      type: 'error',
+      title: 'Loading Failed',
+      message: 'Failed to load plugins',
+      duration: 5000
+    })
+  } finally {
+    isLoading.value = false
+    lastOperation.value = loadPlugins
+  }
+}
+
+/**
+ * Perform search with debouncing and caching
+ */
+const performSearch = async (query: string = searchQuery.value) => {
+  try {
+    isLoading.value = true
+    
+    const searchOptions: PluginSearchOptions = {
+      query: query || undefined,
+      category: selectedCategory.value || undefined,
+      enabled: statusFilter.value === 'enabled' ? true : 
+               statusFilter.value === 'disabled' ? false : undefined,
+      sortBy: sortBy.value as any,
+      sortOrder: sortBy.value.endsWith('-desc') ? 'desc' : 'asc'
+    }
+
+    const result = await pluginManagementService.searchPlugins(searchOptions)
     plugins.value = result
     
     // Load statistics from state management
@@ -961,11 +1161,20 @@ const handleUninstall = (pluginId: string) => {
   }
 }
 
-const handleViewDetails = (pluginId: string) => {
-  const plugin = plugins.value.find(p => p.id === pluginId)
-  if (plugin) {
-    selectedPluginForDetails.value = plugin
-    detailsModalOpen.value = true
+const handleViewDetails = async (pluginId: string) => {
+  try {
+    // Use lazy loading for plugin details
+    const details = await performanceMonitor.measureAsync(`view-details-${pluginId}`, async () => {
+      return await loadPluginDetails(pluginId) || plugins.value.find(p => p.id === pluginId)
+    })
+    
+    if (details) {
+      selectedPluginForDetails.value = details
+      detailsModalOpen.value = true
+    }
+  } catch (error) {
+    console.error('Failed to load plugin details:', error)
+    pluginError('Failed to load plugin details')
   }
 }
 
