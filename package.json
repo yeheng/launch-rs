@@ -32,8 +32,20 @@
     "@types/node": "^22.15.3",
     "@types/vue-router": "^2.0.0",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^25.0.1",
     "typescript": "~5.8.3",
     "vite": "^6.0.3",
+    "vitest": "^2.1.8",
     "vue-tsc": "^2.1.10"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui"
   }
 }

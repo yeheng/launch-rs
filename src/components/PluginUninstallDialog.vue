@@ -1,12 +1,17 @@
 <template>
   <Dialog :open="open" @update:open="handleOpenChange">
-    <DialogContent class="max-w-md">
+    <DialogContent 
+      class="max-w-md"
+      role="alertdialog"
+      aria-labelledby="uninstall-title"
+      aria-describedby="uninstall-description"
+    >
       <DialogHeader>
-        <DialogTitle class="flex items-center space-x-2 text-red-600">
-          <AlertTriangleIcon class="w-5 h-5" />
+        <DialogTitle id="uninstall-title" class="flex items-center space-x-2 text-red-600">
+          <AlertTriangleIcon class="w-5 h-5" aria-hidden="true" />
           <span>Uninstall Plugin</span>
         </DialogTitle>
-        <DialogDescription>
+        <DialogDescription id="uninstall-description">
           This action cannot be undone. Please review the consequences below.
         </DialogDescription>
       </DialogHeader>
@@ -24,9 +29,9 @@
         </div>
 
         <!-- Consequences Warning -->
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h4 class="font-medium text-red-800 mb-2">What will happen:</h4>
-          <ul class="text-sm text-red-700 space-y-1">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4" role="alert" aria-labelledby="consequences-heading">
+          <h4 id="consequences-heading" class="font-medium text-red-800 mb-2">What will happen:</h4>
+          <ul class="text-sm text-red-700 space-y-1" role="list">
             <li class="flex items-start space-x-2">
               <div class="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0"></div>
               <span>The plugin will be permanently removed from your system</span>
@@ -66,15 +71,26 @@
 
         <!-- Confirmation Input -->
         <div v-if="requireConfirmation" class="space-y-2">
-          <label class="text-sm font-medium text-gray-700">
+          <label for="confirmation-input" class="text-sm font-medium text-gray-700">
             Type "{{ plugin.name }}" to confirm uninstallation:
           </label>
           <Input
+            id="confirmation-input"
             v-model="confirmationText"
             :placeholder="plugin.name"
             class="w-full"
             :class="{ 'border-red-300': confirmationText && !isConfirmationValid }"
+            :aria-describedby="confirmationText && !isConfirmationValid ? 'confirmation-error' : undefined"
+            aria-required="true"
           />
+          <div 
+            v-if="confirmationText && !isConfirmationValid" 
+            id="confirmation-error" 
+            class="text-sm text-red-600"
+            role="alert"
+          >
+            Please type the exact plugin name to confirm
+          </div>
         </div>
       </div>
 

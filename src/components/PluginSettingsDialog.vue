@@ -1,27 +1,35 @@
 <template>
   <Dialog :open="open" @update:open="handleOpenChange">
-    <DialogContent class="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+    <DialogContent 
+      class="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+      role="dialog"
+      :aria-labelledby="plugin ? `settings-title-${plugin.id}` : undefined"
+      aria-describedby="settings-description"
+    >
       <DialogHeader>
-        <DialogTitle class="flex items-center space-x-2">
-          <component :is="plugin?.icon" class="w-5 h-5" />
+        <DialogTitle 
+          class="flex items-center space-x-2"
+          :id="plugin ? `settings-title-${plugin.id}` : undefined"
+        >
+          <component :is="plugin?.icon" class="w-5 h-5" aria-hidden="true" />
           <span>{{ plugin?.name }} Settings</span>
         </DialogTitle>
-        <DialogDescription>
+        <DialogDescription id="settings-description">
           Configure {{ plugin?.name }} plugin settings. Changes are applied immediately.
         </DialogDescription>
       </DialogHeader>
 
-      <div class="flex-1 overflow-y-auto pr-2">
-        <form @submit.prevent="handleSave" class="space-y-6">
+      <div class="flex-1 overflow-y-auto pr-2" role="main" aria-label="Plugin settings form">
+        <form @submit.prevent="handleSave" class="space-y-6" role="form" aria-label="Plugin configuration form">
           <!-- Settings Groups -->
-          <div v-for="group in settingsGroups" :key="group.name" class="space-y-4">
+          <fieldset v-for="group in settingsGroups" :key="group.name" class="space-y-4">
             <!-- Group Header -->
-            <div v-if="group.name !== 'default'" class="border-b pb-2">
+            <legend v-if="group.name !== 'default'" class="border-b pb-2 w-full">
               <h3 class="text-sm font-medium text-gray-900">{{ group.label }}</h3>
               <p v-if="group.description" class="text-xs text-gray-500 mt-1">
                 {{ group.description }}
               </p>
-            </div>
+            </legend>
 
             <!-- Settings in Group -->
             <div class="space-y-4">
@@ -196,7 +204,7 @@
                 </p>
               </div>
             </div>
-          </div>
+          </fieldset>
 
           <!-- No Settings Message -->
           <div v-if="!hasSettings" class="text-center py-8 text-gray-500">

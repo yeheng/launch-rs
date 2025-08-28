@@ -1,9 +1,17 @@
 <template>
   <Dialog :open="open" @update:open="handleOpenChange">
-    <DialogContent class="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <DialogContent 
+      class="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+      role="dialog"
+      :aria-labelledby="plugin ? `plugin-details-title-${plugin.id}` : undefined"
+      :aria-describedby="plugin ? `plugin-details-desc-${plugin.id}` : undefined"
+    >
       <DialogHeader>
-        <DialogTitle class="flex items-center space-x-3">
-          <component :is="plugin?.icon" class="w-6 h-6" />
+        <DialogTitle 
+          class="flex items-center space-x-3"
+          :id="plugin ? `plugin-details-title-${plugin.id}` : undefined"
+        >
+          <component :is="plugin?.icon" class="w-6 h-6" aria-hidden="true" />
           <div class="flex-1">
             <div class="flex items-center space-x-2">
               <span>{{ plugin?.name }}</span>
@@ -13,23 +21,24 @@
               <div 
                 class="w-2 h-2 rounded-full"
                 :class="plugin?.enabled ? 'bg-green-500' : 'bg-gray-400'"
-                :title="plugin?.enabled ? 'Enabled' : 'Disabled'"
+                :aria-label="plugin?.enabled ? 'Plugin is enabled' : 'Plugin is disabled'"
+                role="status"
               />
             </div>
           </div>
         </DialogTitle>
-        <DialogDescription>
+        <DialogDescription :id="plugin ? `plugin-details-desc-${plugin.id}` : undefined">
           {{ plugin?.description }}
         </DialogDescription>
       </DialogHeader>
 
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto" role="main" aria-label="Plugin details content">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Main Information -->
           <div class="lg:col-span-2 space-y-6">
             <!-- Basic Information -->
-            <div class="space-y-4">
-              <h3 class="text-lg font-semibold text-gray-900">Plugin Information</h3>
+            <section class="space-y-4" aria-labelledby="basic-info-heading">
+              <h3 id="basic-info-heading" class="text-lg font-semibold text-gray-900">Plugin Information</h3>
               <div class="bg-gray-50 rounded-lg p-4 space-y-3">
                 <div class="grid grid-cols-2 gap-4">
                   <div>
@@ -64,11 +73,11 @@
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
 
             <!-- Installation Information -->
-            <div class="space-y-4">
-              <h3 class="text-lg font-semibold text-gray-900">Installation Details</h3>
+            <section class="space-y-4" aria-labelledby="install-info-heading">
+              <h3 id="install-info-heading" class="text-lg font-semibold text-gray-900">Installation Details</h3>
               <div class="bg-gray-50 rounded-lg p-4 space-y-3">
                 <div class="grid grid-cols-2 gap-4">
                   <div>
@@ -109,7 +118,7 @@
                   </p>
                 </div>
               </div>
-            </div>
+            </section>
 
             <!-- System Requirements -->
             <div class="space-y-4">

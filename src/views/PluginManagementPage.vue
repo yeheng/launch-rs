@@ -13,18 +13,19 @@
   >
     <div class="min-h-screen bg-gray-50">
     <!-- Header -->
-    <div class="bg-white border-b">
+    <header class="bg-white border-b" role="banner">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Navigation -->
         <div class="flex items-center justify-between pt-4 pb-2">
-          <Breadcrumb :items="breadcrumbItems" />
+          <Breadcrumb :items="breadcrumbItems" aria-label="Plugin management navigation" />
           <Button 
             variant="ghost" 
             size="sm"
             @click="navigateHome"
             class="text-gray-600 hover:text-gray-700"
+            aria-label="Return to home page"
           >
-            <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
             Back to Home
@@ -34,61 +35,86 @@
         <div class="py-6">
           <div class="flex items-center justify-between">
             <div>
-              <h1 class="text-2xl font-bold text-gray-900">Plugin Management</h1>
-              <p class="mt-1 text-sm text-gray-500">
+              <h1 class="text-2xl font-bold text-gray-900" id="page-title">Plugin Management</h1>
+              <p class="mt-1 text-sm text-gray-500" id="page-description">
                 Manage your plugins, configure settings, and discover new functionality
               </p>
             </div>
             
             <!-- Plugin Statistics -->
-            <div v-if="statistics" class="flex items-center space-x-6 text-sm text-gray-600">
+            <div v-if="statistics" class="flex items-center space-x-6 text-sm text-gray-600" role="region" aria-labelledby="stats-heading">
+              <h2 id="stats-heading" class="sr-only">Plugin Statistics</h2>
               <div class="text-center">
-                <div class="text-lg font-semibold text-gray-900">{{ statistics.total }}</div>
+                <div class="text-lg font-semibold text-gray-900" aria-label="Total plugins">{{ statistics.total }}</div>
                 <div>Total</div>
               </div>
               <div class="text-center">
-                <div class="text-lg font-semibold text-green-600">{{ statistics.enabled }}</div>
+                <div class="text-lg font-semibold text-green-600" aria-label="Enabled plugins">{{ statistics.enabled }}</div>
                 <div>Enabled</div>
               </div>
               <div class="text-center">
-                <div class="text-lg font-semibold text-blue-600">{{ statistics.installed }}</div>
+                <div class="text-lg font-semibold text-blue-600" aria-label="Installed plugins">{{ statistics.installed }}</div>
                 <div>Installed</div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </header>
 
     <!-- Search and Filters -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" role="main" aria-labelledby="page-title" aria-describedby="page-description">
+      <section class="bg-white rounded-lg shadow-sm border p-4 mb-6" role="search" aria-labelledby="search-heading">
+        <h2 id="search-heading" class="sr-only">Search and Filter Plugins</h2>
         <div class="flex flex-col sm:flex-row gap-4">
           <!-- Search Input -->
           <div class="flex-1">
+            <label for="plugin-search" class="sr-only">Search plugins by name, description, or keywords</label>
             <div class="relative">
-              <SearchIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <SearchIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
               <Input
+                id="plugin-search"
+                ref="searchInputRef"
                 v-model="searchQuery"
                 placeholder="Search plugins by name, description, or keywords..."
-                class="pl-10"
+                class="pl-10 pr-10"
                 @input="debouncedSearch"
+                @keydown.escape="clearSearch"
+                role="searchbox"
+                aria-describedby="search-help"
+                :aria-expanded="showSearchSuggestions"
+                aria-autocomplete="list"
               />
+              <div id="search-help" class="sr-only">
+                Use this field to search for plugins. Press Escape to clear the search.
+              </div>
+              <!-- Clear search button -->
+              <button
+                v-if="searchQuery"
+                @click="clearSearch"
+                class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Clear search query"
+                type="button"
+              >
+                <XIcon class="w-4 h-4" aria-hidden="true" />
+              </button>
             </div>
           </div>
           
           <!-- Category Filter -->
           <div class="w-full sm:w-48">
+            <label for="category-filter" class="sr-only">Filter by category</label>
             <Select v-model="selectedCategory" @update:value="handleCategoryChange">
-              <SelectTrigger>
+              <SelectTrigger id="category-filter" aria-label="Filter plugins by category">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+              <SelectContent role="listbox" aria-label="Plugin categories">
+                <SelectItem value="" role="option">All Categories</SelectItem>
                 <SelectItem 
                   v-for="category in availableCategories" 
                   :key="category" 
                   :value="category"
+                  role="option"
                 >
                   {{ formatCategory(category) }}
                 </SelectItem>
@@ -98,34 +124,41 @@
           
           <!-- Status Filter -->
           <div class="w-full sm:w-32">
+            <label for="status-filter" class="sr-only">Filter by status</label>
             <Select v-model="statusFilter" @update:value="handleStatusChange">
-              <SelectTrigger>
+              <SelectTrigger id="status-filter" aria-label="Filter plugins by status">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
-                <SelectItem value="enabled">Enabled</SelectItem>
-                <SelectItem value="disabled">Disabled</SelectItem>
+              <SelectContent role="listbox" aria-label="Plugin status options">
+                <SelectItem value="" role="option">All Status</SelectItem>
+                <SelectItem value="enabled" role="option">Enabled</SelectItem>
+                <SelectItem value="disabled" role="option">Disabled</SelectItem>
               </SelectContent>
             </Select>
           </div>
           
           <!-- Sort Options -->
-          <div class="w-full sm:w-40">
+          <div class="w-full sm:w-48">
+            <label for="sort-options" class="sr-only">Sort plugins</label>
             <Select v-model="sortBy" @update:value="handleSortChange">
-              <SelectTrigger>
+              <SelectTrigger id="sort-options" aria-label="Sort plugins by">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="category">Category</SelectItem>
-                <SelectItem value="installDate">Install Date</SelectItem>
-                <SelectItem value="lastUpdated">Last Updated</SelectItem>
+              <SelectContent role="listbox" aria-label="Sort options">
+                <SelectItem value="name" role="option">Name (A-Z)</SelectItem>
+                <SelectItem value="name-desc" role="option">Name (Z-A)</SelectItem>
+                <SelectItem value="category" role="option">Category</SelectItem>
+                <SelectItem value="installDate" role="option">Install Date (Newest)</SelectItem>
+                <SelectItem value="installDate-desc" role="option">Install Date (Oldest)</SelectItem>
+                <SelectItem value="lastUpdated" role="option">Last Updated (Newest)</SelectItem>
+                <SelectItem value="lastUpdated-desc" role="option">Last Updated (Oldest)</SelectItem>
+                <SelectItem value="rating" role="option">Rating (Highest)</SelectItem>
+                <SelectItem value="downloadCount" role="option">Popularity</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Plugin Health and Recommendations -->
       <div v-if="healthSummary && (healthSummary.withWarnings > 0 || healthSummary.withErrors > 0 || pluginRecommendations.length > 0)" class="bg-white rounded-lg shadow-sm border p-4 mb-6">
@@ -245,30 +278,83 @@
         <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <PluginIcon class="w-8 h-8 text-gray-400" />
         </div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No plugins found</h3>
-        <p class="text-gray-500 mb-4">
-          {{ searchQuery || selectedCategory || statusFilter 
-            ? 'No plugins match your current filters.' 
-            : 'No plugins are currently installed.' }}
+        <h3 class="text-lg font-medium text-gray-900 mb-2">
+          {{ getEmptyStateTitle() }}
+        </h3>
+        <p class="text-gray-500 mb-4 max-w-md mx-auto">
+          {{ getEmptyStateMessage() }}
         </p>
-        <Button
-          v-if="searchQuery || selectedCategory || statusFilter"
-          variant="outline"
-          @click="clearFilters"
-        >
-          Clear Filters
-        </Button>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button
+            v-if="hasActiveFilters"
+            variant="outline"
+            @click="clearFilters"
+            class="inline-flex items-center"
+          >
+            <XIcon class="w-4 h-4 mr-2" />
+            Clear Filters
+          </Button>
+          <Button
+            v-if="searchQuery"
+            variant="outline"
+            @click="suggestSearchTerms"
+            class="inline-flex items-center"
+          >
+            <SearchIcon class="w-4 h-4 mr-2" />
+            Search Suggestions
+          </Button>
+        </div>
+        <!-- Search suggestions -->
+        <div v-if="showSearchSuggestions && searchSuggestions.length" class="mt-6">
+          <p class="text-sm text-gray-600 mb-3">Try searching for:</p>
+          <div class="flex flex-wrap gap-2 justify-center">
+            <button
+              v-for="suggestion in searchSuggestions"
+              :key="suggestion"
+              @click="applySuggestion(suggestion)"
+              class="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors"
+            >
+              {{ suggestion }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Plugin Grid -->
-      <div v-else-if="plugins.length" class="space-y-4">
+      <section v-else-if="plugins.length" class="space-y-4" role="region" aria-labelledby="results-heading">
         <!-- Results Info -->
         <div class="flex items-center justify-between text-sm text-gray-600">
-          <div>
-            Showing {{ plugins.length }} plugin{{ plugins.length !== 1 ? 's' : '' }}
-            <span v-if="searchQuery || selectedCategory || statusFilter">
-              matching your filters
-            </span>
+          <div class="flex items-center space-x-4">
+            <div id="results-heading" role="status" aria-live="polite">
+              Showing {{ plugins.length }} plugin{{ plugins.length !== 1 ? 's' : '' }}
+              <span v-if="hasActiveFilters">
+                matching your filters
+              </span>
+            </div>
+            <!-- Active filters summary -->
+            <div v-if="hasActiveFilters" class="flex items-center space-x-2">
+              <span class="text-gray-400">•</span>
+              <div class="flex items-center space-x-1">
+                <span v-if="searchQuery" class="inline-flex items-center text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                  "{{ searchQuery }}"
+                  <button @click="clearSearch" class="ml-1 hover:text-blue-900">
+                    <XIcon class="w-3 h-3" />
+                  </button>
+                </span>
+                <span v-if="selectedCategory" class="inline-flex items-center text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                  {{ formatCategory(selectedCategory) }}
+                  <button @click="clearCategoryFilter" class="ml-1 hover:text-green-900">
+                    <XIcon class="w-3 h-3" />
+                  </button>
+                </span>
+                <span v-if="statusFilter" class="inline-flex items-center text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                  {{ statusFilter === 'enabled' ? 'Enabled' : 'Disabled' }}
+                  <button @click="clearStatusFilter" class="ml-1 hover:text-purple-900">
+                    <XIcon class="w-3 h-3" />
+                  </button>
+                </span>
+              </div>
+            </div>
           </div>
           <div v-if="isLoading" class="flex items-center">
             <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
@@ -277,22 +363,31 @@
         </div>
 
         <!-- Plugin Cards -->
-        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div 
+          class="grid gap-4 md:grid-cols-2 lg:grid-cols-3" 
+          role="grid" 
+          aria-label="Plugin list"
+          :aria-rowcount="Math.ceil(plugins.length / 3)"
+        >
           <PluginCard
-            v-for="plugin in plugins"
+            v-for="(plugin, index) in plugins"
             :key="plugin.id"
             :plugin="plugin"
             :show-details="true"
             :show-status="true"
             :is-loading="loadingPlugins.has(plugin.id)"
+            :search-query="searchQuery"
+            role="gridcell"
+            :aria-rowindex="Math.floor(index / 3) + 1"
+            :aria-colindex="(index % 3) + 1"
             @toggle-enabled="handleToggleEnabled"
             @configure="handleConfigure"
             @uninstall="handleUninstall"
             @view-details="handleViewDetails"
           />
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
 
     <!-- Plugin Settings Dialog -->
     <PluginSettingsDialog
@@ -451,7 +546,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useNavigation } from '@/lib/composables/useNavigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -503,6 +598,7 @@ const {
 const SearchIcon = { template: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' }
 const AlertCircleIcon = { template: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' }
 const PluginIcon = { template: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="9"/><rect x="14" y="7" width="3" height="5"/></svg>' }
+const XIcon = { template: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' }
 
 // Reactive state
 const plugins = ref<EnhancedSearchPlugin[]>([])
@@ -512,6 +608,13 @@ const error = ref<PluginManagementError | null>(null)
 const loadingPlugins = ref(new Set<string>())
 const globalLoadingId = ref<string | null>(null)
 const errorBoundaryRef = ref<InstanceType<typeof ErrorBoundary> | null>(null)
+
+// Search input ref for focus management
+const searchInputRef = ref<HTMLInputElement | null>(null)
+
+// Focus management and keyboard navigation
+const focusedPluginIndex = ref(-1)
+const isKeyboardNavigating = ref(false)
 
 // Search and filter state
 const searchQuery = ref('')
@@ -533,6 +636,16 @@ const isUninstallLoading = ref(false)
 let searchDebounceTimer: NodeJS.Timeout | null = null
 const lastOperation = ref<(() => Promise<void>) | null>(null)
 
+// Search suggestions state
+const showSearchSuggestions = ref(false)
+const searchSuggestions = ref<string[]>([])
+
+// Available search suggestions based on installed plugins
+const availableSearchTerms = ref<string[]>([
+  'search', 'productivity', 'utilities', 'development', 'system',
+  'file', 'calculator', 'weather', 'notes', 'text', 'network'
+])
+
 // Computed properties
 const availableCategories = computed(() => {
   return Object.values(PluginCategory)
@@ -550,6 +663,10 @@ const usageTrends = computed(() => {
   return getUsageTrends()
 })
 
+const hasActiveFilters = computed(() => {
+  return !!(searchQuery.value || selectedCategory.value || statusFilter.value)
+})
+
 // Methods
 const loadPlugins = async () => {
   isLoading.value = true
@@ -561,12 +678,28 @@ const loadPlugins = async () => {
   })
   
   try {
+    // Parse sort option to extract field and order
+    const parseSortOption = (sortOption: string) => {
+      if (sortOption.endsWith('-desc')) {
+        return {
+          field: sortOption.replace('-desc', '') as any,
+          order: 'desc' as const
+        }
+      }
+      return {
+        field: sortOption as any,
+        order: 'asc' as const
+      }
+    }
+    
+    const { field: sortField, order: sortOrder } = parseSortOption(sortBy.value)
+    
     const searchOptions: PluginSearchOptions = {
       query: searchQuery.value || undefined,
       category: selectedCategory.value as PluginCategory || undefined,
       enabled: statusFilter.value === 'enabled' ? true : statusFilter.value === 'disabled' ? false : undefined,
-      sortBy: sortBy.value as any || 'name',
-      sortOrder: 'asc'
+      sortBy: sortField || 'name',
+      sortOrder: sortOrder
     }
     
     const result = await withPluginErrorHandling('plugin-management', async () => {
@@ -577,6 +710,9 @@ const loadPlugins = async () => {
     
     // Load statistics from state management
     statistics.value = getStatistics()
+    
+    // Update search suggestions based on loaded plugins
+    updateSearchSuggestions(result)
     
     lastOperation.value = () => loadPlugins()
     
@@ -652,7 +788,89 @@ const clearFilters = () => {
   selectedCategory.value = ''
   statusFilter.value = ''
   sortBy.value = 'name'
+  showSearchSuggestions.value = false
   loadPlugins()
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  showSearchSuggestions.value = false
+  loadPlugins()
+}
+
+const clearCategoryFilter = () => {
+  selectedCategory.value = ''
+  loadPlugins()
+}
+
+const clearStatusFilter = () => {
+  statusFilter.value = ''
+  loadPlugins()
+}
+
+const getEmptyStateTitle = () => {
+  if (searchQuery.value) {
+    return `No results for "${searchQuery.value}"`
+  }
+  if (selectedCategory.value || statusFilter.value) {
+    return 'No plugins match your filters'
+  }
+  return 'No plugins found'
+}
+
+const getEmptyStateMessage = () => {
+  if (searchQuery.value) {
+    return 'Try adjusting your search terms or browse by category to find what you\'re looking for.'
+  }
+  if (selectedCategory.value || statusFilter.value) {
+    return 'Try removing some filters or search for specific plugins by name.'
+  }
+  return 'No plugins are currently installed. You can install plugins from the plugin store.'
+}
+
+const suggestSearchTerms = () => {
+  // Generate search suggestions based on available plugins and common terms
+  const suggestions = availableSearchTerms.value.filter(term => 
+    !searchQuery.value || !term.toLowerCase().includes(searchQuery.value.toLowerCase())
+  ).slice(0, 6)
+  
+  searchSuggestions.value = suggestions
+  showSearchSuggestions.value = true
+}
+
+const applySuggestion = (suggestion: string) => {
+  searchQuery.value = suggestion
+  showSearchSuggestions.value = false
+  loadPlugins()
+}
+
+const updateSearchSuggestions = (pluginList: EnhancedSearchPlugin[]) => {
+  // Extract keywords and terms from plugins
+  const terms = new Set<string>()
+  
+  pluginList.forEach(plugin => {
+    // Add plugin name words
+    plugin.name.toLowerCase().split(/\s+/).forEach(word => {
+      if (word.length > 2) terms.add(word)
+    })
+    
+    // Add keywords
+    plugin.metadata.keywords.forEach(keyword => {
+      if (keyword.length > 2) terms.add(keyword.toLowerCase())
+    })
+    
+    // Add category
+    terms.add(plugin.metadata.category.toLowerCase())
+    
+    // Add description words (first few words)
+    const descWords = plugin.description.toLowerCase().split(/\s+/).slice(0, 3)
+    descWords.forEach(word => {
+      if (word.length > 3) terms.add(word)
+    })
+  })
+  
+  // Update available search terms
+  availableSearchTerms.value = Array.from(terms).sort()
 }
 
 const handleRecommendationAction = async (recommendation: any) => {
@@ -890,6 +1108,119 @@ const formatFileSize = (bytes: number): string => {
   return PluginUtils.formatFileSize(bytes)
 }
 
+// Keyboard navigation methods
+const handleKeyboardNavigation = (event: KeyboardEvent) => {
+  if (!plugins.value.length) return
+
+  const { key, ctrlKey, metaKey } = event
+  
+  // Handle search focus with Ctrl/Cmd + F
+  if ((ctrlKey || metaKey) && key === 'f') {
+    event.preventDefault()
+    focusSearchInput()
+    return
+  }
+
+  // Only handle arrow keys when not in input fields
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+    return
+  }
+
+  switch (key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      navigatePlugins('down')
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      navigatePlugins('up')
+      break
+    case 'ArrowRight':
+      event.preventDefault()
+      navigatePlugins('right')
+      break
+    case 'ArrowLeft':
+      event.preventDefault()
+      navigatePlugins('left')
+      break
+    case 'Enter':
+    case ' ':
+      if (focusedPluginIndex.value >= 0) {
+        event.preventDefault()
+        const plugin = plugins.value[focusedPluginIndex.value]
+        if (plugin) {
+          handleViewDetails(plugin.id)
+        }
+      }
+      break
+    case 'Escape':
+      event.preventDefault()
+      clearFocus()
+      break
+  }
+}
+
+const navigatePlugins = (direction: 'up' | 'down' | 'left' | 'right') => {
+  if (!plugins.value.length) return
+
+  isKeyboardNavigating.value = true
+  const totalPlugins = plugins.value.length
+  const columnsPerRow = 3 // Based on lg:grid-cols-3
+  
+  let newIndex = focusedPluginIndex.value
+
+  switch (direction) {
+    case 'down':
+      newIndex = Math.min(totalPlugins - 1, focusedPluginIndex.value + columnsPerRow)
+      break
+    case 'up':
+      newIndex = Math.max(0, focusedPluginIndex.value - columnsPerRow)
+      break
+    case 'right':
+      if (focusedPluginIndex.value < totalPlugins - 1) {
+        newIndex = focusedPluginIndex.value + 1
+      }
+      break
+    case 'left':
+      if (focusedPluginIndex.value > 0) {
+        newIndex = focusedPluginIndex.value - 1
+      }
+      break
+  }
+
+  if (newIndex !== focusedPluginIndex.value) {
+    focusedPluginIndex.value = newIndex
+    focusPlugin(newIndex)
+  }
+}
+
+const focusPlugin = async (index: number) => {
+  await nextTick()
+  const pluginCards = document.querySelectorAll('[role="gridcell"]')
+  const targetCard = pluginCards[index] as HTMLElement
+  
+  if (targetCard) {
+    targetCard.focus()
+    targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+}
+
+const focusSearchInput = () => {
+  if (searchInputRef.value) {
+    searchInputRef.value.focus()
+  }
+}
+
+const clearFocus = () => {
+  focusedPluginIndex.value = -1
+  isKeyboardNavigating.value = false
+  
+  // Return focus to search input or main content
+  if (searchInputRef.value) {
+    searchInputRef.value.focus()
+  }
+}
+
 const formatPermissionType = (type: PluginPermissionType): string => {
   return type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')
 }
@@ -956,16 +1287,42 @@ const setupStateListeners = () => {
   })
 }
 
+// Keyboard event handler
+const handleKeyboardShortcuts = (event: KeyboardEvent) => {
+  // Ctrl/Cmd + K to focus search
+  if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+    event.preventDefault()
+    searchInputRef.value?.focus()
+  }
+  
+  // Escape to clear search when focused
+  if (event.key === 'Escape' && document.activeElement === searchInputRef.value) {
+    clearSearch()
+  }
+}
+
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
   setupStateListeners()
-  loadPlugins()
+  await loadPlugins()
+  
+  // Add keyboard event listeners
+  document.addEventListener('keydown', handleKeyboardShortcuts)
+  document.addEventListener('keydown', handleKeyboardNavigation)
+  
+  // Focus search input on page load for better accessibility
+  await nextTick()
+  focusSearchInput()
 })
 
 onUnmounted(() => {
   if (searchDebounceTimer) {
     clearTimeout(searchDebounceTimer)
   }
+  
+  // Clean up keyboard event listeners
+  document.removeEventListener('keydown', handleKeyboardShortcuts)
+  document.removeEventListener('keydown', handleKeyboardNavigation)
   
   // Clean up state listeners
   pluginStateListener.destroy()

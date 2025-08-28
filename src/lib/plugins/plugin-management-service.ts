@@ -331,20 +331,20 @@ export class PluginManagementService {
 
           switch (options.sortBy) {
             case 'name':
-              aValue = a.name
-              bValue = b.name
+              aValue = a.name.toLowerCase()
+              bValue = b.name.toLowerCase()
               break
             case 'category':
               aValue = a.metadata.category
               bValue = b.metadata.category
               break
             case 'installDate':
-              aValue = a.metadata.installDate
-              bValue = b.metadata.installDate
+              aValue = a.metadata.installDate.getTime()
+              bValue = b.metadata.installDate.getTime()
               break
             case 'lastUpdated':
-              aValue = a.metadata.lastUpdated
-              bValue = b.metadata.lastUpdated
+              aValue = a.metadata.lastUpdated.getTime()
+              bValue = b.metadata.lastUpdated.getTime()
               break
             case 'rating':
               aValue = a.metadata.rating || 0
@@ -1126,12 +1126,7 @@ export class PluginManagementService {
     }
   }
 
-  /**
-   * Get plugin statistics
-   */
-  getPluginStatistics() {
-    return pluginStatisticsManager.getStatistics()
-  }
+
 
   /**
    * Get plugin usage metrics

@@ -1,7 +1,12 @@
 <template>
-  <div 
-    class="border rounded-lg p-4 transition-all duration-200 hover:shadow-md"
+  <article 
+    class="border rounded-lg p-4 transition-all duration-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
     :class="cardClasses"
+    tabindex="0"
+    role="article"
+    :aria-label="`Plugin: ${plugin.name}, version ${plugin.version}, ${plugin.enabled ? 'enabled' : 'disabled'}`"
+    :aria-describedby="`plugin-desc-${plugin.id}`"
+    @keydown="handleKeyDown"
   >
     <!-- Plugin Header -->
     <div class="flex items-center justify-between mb-3">
@@ -18,7 +23,13 @@
         <!-- Plugin Info -->
         <div class="flex-1 min-w-0">
           <div class="flex items-center space-x-2">
-            <h3 class="font-semibold text-gray-900 truncate">{{ plugin.name }}</h3>
+            <h3 class="font-semibold text-gray-900 truncate">
+              <HighlightedText 
+                :text="plugin.name" 
+                :search-query="searchQuery"
+                :highlight="!!searchQuery"
+              />
+            </h3>
             <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
               v{{ plugin.version }}
             </span>
@@ -29,7 +40,13 @@
               />
             </div>
           </div>
-          <p class="text-sm text-gray-600 truncate mt-1">{{ plugin.description }}</p>
+          <p class="text-sm text-gray-600 truncate mt-1" :id="`plugin-desc-${plugin.id}`">
+            <HighlightedText 
+              :text="plugin.description" 
+              :search-query="searchQuery"
+              :highlight="!!searchQuery"
+            />
+          </p>
         </div>
       </div>
       
@@ -40,7 +57,12 @@
           @update:checked="handleToggleEnabled"
           :disabled="isLoading || !canToggle"
           class="shrink-0"
+          :aria-label="`${plugin.enabled ? 'Disable' : 'Enable'} ${plugin.name} plugin`"
+          :aria-describedby="`toggle-help-${plugin.id}`"
         />
+        <span :id="`toggle-help-${plugin.id}`" class="sr-only">
+          Toggle to {{ plugin.enabled ? 'disable' : 'enable' }} this plugin
+        </span>
       </div>
     </div>
     
@@ -67,8 +89,9 @@
           @click="handleConfigure"
           :disabled="isLoading || !plugin.enabled"
           class="text-xs"
+          :aria-label="`Configure ${plugin.name} plugin settings`"
         >
-          <SettingsIcon class="w-3 h-3 mr-1" />
+          <SettingsIcon class="w-3 h-3 mr-1" aria-hidden="true" />
           Configure
         </Button>
         
@@ -79,8 +102,9 @@
           @click="handleViewDetails"
           :disabled="isLoading"
           class="text-xs"
+          :aria-label="`View details for ${plugin.name} plugin`"
         >
-          <InfoIcon class="w-3 h-3 mr-1" />
+          <InfoIcon class="w-3 h-3 mr-1" aria-hidden="true" />
           Details
         </Button>
       </div>
@@ -99,10 +123,15 @@
           @click="handleUninstall"
           :disabled="isLoading"
           class="text-xs"
+          :aria-label="`Uninstall ${plugin.name} plugin`"
+          :aria-describedby="`uninstall-warning-${plugin.id}`"
         >
-          <TrashIcon class="w-3 h-3 mr-1" />
+          <TrashIcon class="w-3 h-3 mr-1" aria-hidden="true" />
           Uninstall
         </Button>
+        <span :id="`uninstall-warning-${plugin.id}`" class="sr-only">
+          Warning: This will permanently remove the plugin and all its data
+        </span>
       </div>
     </div>
 
@@ -113,7 +142,7 @@
     >
       <LoadingSpinner size="md" variant="primary" />
     </div>
-  </div>
+  </article>
 </template>
 
 <script setup lang="ts">
@@ -121,6 +150,7 @@ import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { LoadingSpinner } from '@/components/ui/loading'
+import { HighlightedText } from '@/components/ui/search'
 import type { EnhancedSearchPlugin, PluginCategory } from '@/lib/plugins/types'
 import { PluginUtils } from '@/lib/plugins/types'
 
@@ -142,6 +172,8 @@ interface Props {
   showActions?: boolean
   /** Compact mode for smaller cards */
   compact?: boolean
+  /** Search query for highlighting */
+  searchQuery?: string
 }
 
 interface Emits {
@@ -230,5 +262,40 @@ const formatDate = (date: Date): string => {
 
 const formatFileSize = (bytes: number): string => {
   return PluginUtils.formatFileSize(bytes)
+}
+
+// Keyboard navigation handler
+const handleKeyDown = (event: KeyboardEvent) => {
+  const { key } = event
+  
+  switch (key) {
+    case 'Enter':
+    case ' ':
+      event.preventDefault()
+      handleViewDetails()
+      break
+    case 't':
+      // Toggle plugin with 't' key
+      if (!props.isLoading && canToggle.value) {
+        event.preventDefault()
+        handleToggleEnabled(!props.plugin.enabled)
+      }
+      break
+    case 'c':
+      // Configure plugin with 'c' key
+      if (hasSettings.value && !props.isLoading && props.plugin.enabled) {
+        event.preventDefault()
+        handleConfigure()
+      }
+      break
+    case 'Delete':
+    case 'Backspace':
+      // Uninstall plugin with Delete/Backspace key
+      if (canUninstall.value && !props.isLoading) {
+        event.preventDefault()
+        handleUninstall()
+      }
+      break
+  }
 }
 </script>
