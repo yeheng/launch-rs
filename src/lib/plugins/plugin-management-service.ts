@@ -1,23 +1,25 @@
 import { pluginManager } from '../search-plugin-manager'
 import type { SearchPlugin } from '../search-plugins'
+import { pluginLazyLoader } from './lazy-loader'
+import { CacheKeys, cached, pluginCache } from './performance-cache'
+import { MetricType, monitored, performanceMonitor } from './performance-monitor'
+import { usePluginStateStore } from './plugin-state-manager'
+import { pluginStatisticsManager } from './plugin-statistics'
 import type {
   EnhancedSearchPlugin,
   PluginCatalogItem,
-  PluginValidationResult,
-  PluginHealthStatus
+  PluginHealthStatus,
+  PluginManagementResult,
+  PluginValidationResult
 } from './types'
 import {
   PluginCategory,
   PluginHealthLevel,
+  PluginIssueType,
   PluginPermissionType,
-  PluginIssueType
+  PluginUtils,
+  PluginValidator
 } from './types'
-import { PluginValidator, PluginUtils } from './types'
-import { usePluginStateStore } from './plugin-state-manager'
-import { pluginStatisticsManager } from './plugin-statistics'
-import { pluginCache, CacheKeys, cached } from './performance-cache'
-import { performanceMonitor, MetricType, monitored } from './performance-monitor'
-import { pluginLazyLoader } from './lazy-loader'
 
 /**
  * Plugin management error types

@@ -377,7 +377,7 @@
           @visible-range-change="handleVisibleRangeChange"
           @load-more="handleLoadMore"
         >
-          <template #default="{ item: plugin, index }">
+          <template #default="{ item: plugin }">
             <div class="p-2">
               <PluginCard
                 :key="plugin.id"
@@ -600,54 +600,50 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useNavigation } from '@/lib/composables/useNavigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { ErrorBoundary } from '@/components/ui/error-boundary'
-import { ToastContainer, useToast } from '@/components/ui/toast'
-import { LoadingSpinner, LoadingOverlay, LoadingSkeleton } from '@/components/ui/loading'
-import { VirtualScrollList } from '@/components/ui/virtual-scroll'
 import PluginCard from '@/components/PluginCard.vue'
 import PluginSettingsDialog from '@/components/PluginSettingsDialog.vue'
 import PluginUninstallDialog from '@/components/PluginUninstallDialog.vue'
-import type { 
-  EnhancedSearchPlugin, 
-  PluginStatistics,
-  PluginHealthLevel,
-  PluginPermissionType
-} from '@/lib/plugins/types'
-import { PluginCategory } from '@/lib/plugins/types'
-import { 
-  pluginManagementService, 
-  PluginManagementError,
-  type PluginSearchOptions 
-} from '@/lib/plugins/plugin-management-service'
-import { PluginUtils } from '@/lib/plugins/types'
-import { usePluginStateStore, pluginStateListener } from '@/lib/plugins/plugin-state-manager'
-import { usePluginStatistics } from '@/lib/plugins/plugin-statistics'
-import { pluginErrorHandler, withPluginErrorHandling } from '@/lib/plugins/plugin-error-handler'
-import { performanceMonitor, MetricType } from '@/lib/plugins/performance-monitor'
-import { pluginCache } from '@/lib/plugins/performance-cache'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { Input } from '@/components/ui/input'
+import { LoadingOverlay, LoadingSkeleton, LoadingSpinner } from '@/components/ui/loading'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ToastContainer, useToast } from '@/components/ui/toast'
+import { VirtualScrollList } from '@/components/ui/virtual-scroll'
+import { useNavigation } from '@/lib/composables/useNavigation'
 import { usePluginLazyLoading } from '@/lib/plugins/lazy-loader'
+import { pluginCache } from '@/lib/plugins/performance-cache'
+import { MetricType, performanceMonitor } from '@/lib/plugins/performance-monitor'
+import { withPluginErrorHandling } from '@/lib/plugins/plugin-error-handler'
+import {
+  PluginManagementError,
+  PluginManagementErrorType,
+  pluginManagementService,
+  type PluginSearchOptions
+} from '@/lib/plugins/plugin-management-service'
+import { pluginStateListener } from '@/lib/plugins/plugin-state-manager'
+import { usePluginStatistics } from '@/lib/plugins/plugin-statistics'
+import type {
+  EnhancedSearchPlugin,
+  PluginHealthLevel,
+  PluginPermissionType,
+  PluginStatistics
+} from '@/lib/plugins/types'
+import { PluginCategory, PluginUtils } from '@/lib/plugins/types'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 const { breadcrumbItems, navigateHome } = useNavigation()
 
 // State management
-const pluginStateStore = usePluginStateStore()
 const { getStatistics, getHealthSummary, getUsageTrends, getRecommendations } = usePluginStatistics()
 
 // Performance optimizations
 const { 
   loadPluginDetails, 
-  loadPluginMetadata, 
   preloadDetails, 
-  preloadMetadata,
-  getDetailsState,
-  getStatistics: getLazyLoadStats
+  preloadMetadata
 } = usePluginLazyLoading()
 
 // Toast notifications
@@ -656,8 +652,7 @@ const {
   removeToast, 
   handleToastAction, 
   pluginSuccess, 
-  pluginError, 
-  pluginWarning,
+  pluginError,
   loading: showLoadingToast,
   updateToast
 } = useToast()
@@ -757,7 +752,7 @@ const hasActiveFilters = computed(() => {
 })
 
 // Performance monitoring methods
-const handleVirtualScroll = (scrollTop: number, scrollLeft: number) => {
+const handleVirtualScroll = (_scrollTop: number, _scrollLeft: number) => {
   // Record scroll performance
   performanceMonitor.recordMetric(MetricType.RENDER_TIME, 'virtual-scroll', performance.now())
 }
@@ -812,7 +807,7 @@ const loadPlugins = async () => {
     
     const searchOptions: PluginSearchOptions = {
       query: searchQuery.value || undefined,
-      category: selectedCategory.value as PluginCategory || undefined,
+      category: selectedCategory.value ? selectedCategory.value as PluginCategory : undefined,
       enabled: statusFilter.value === 'enabled' ? true : statusFilter.value === 'disabled' ? false : undefined,
       sortBy: sortField || 'name',
       sortOrder: sortOrder
@@ -856,13 +851,7 @@ const loadPlugins = async () => {
     
     if (err instanceof PluginManagementError) {
       error.value = err
-      pluginError(err.getUserFriendlyMessage(), {
-        title: 'Plugin Loading Error',
-        action: err.recoverable ? {
-          label: 'Retry',
-          handler: () => loadPlugins()
-        } : undefined
-      })
+      pluginError('Plugin Loading Error', err.getUserFriendlyMessage())
     } else {
       const genericError = new PluginManagementError(
         PluginManagementErrorType.PLUGIN_NOT_FOUND,
@@ -873,7 +862,7 @@ const loadPlugins = async () => {
         'Please try refreshing the page'
       )
       error.value = genericError
-      pluginError(genericError.getUserFriendlyMessage())
+      pluginError('Loading Failed', genericError.getUserFriendlyMessage())
     }
     
     // Update toast to show error
@@ -887,85 +876,6 @@ const loadPlugins = async () => {
     isLoading.value = false
     lastOperation.value = loadPlugins
   }
-}
-
-/**
- * Perform search with debouncing and caching
- */
-const performSearch = async (query: string = searchQuery.value) => {
-  try {
-    isLoading.value = true
-    
-    const searchOptions: PluginSearchOptions = {
-      query: query || undefined,
-      category: selectedCategory.value || undefined,
-      enabled: statusFilter.value === 'enabled' ? true : 
-               statusFilter.value === 'disabled' ? false : undefined,
-      sortBy: sortBy.value as any,
-      sortOrder: sortBy.value.endsWith('-desc') ? 'desc' : 'asc'
-    }
-
-    const result = await pluginManagementService.searchPlugins(searchOptions)
-    plugins.value = result
-    
-    // Load statistics from state management
-    statistics.value = getStatistics()
-    
-    // Update search suggestions based on loaded plugins
-    updateSearchSuggestions(result)
-    
-    lastOperation.value = () => loadPlugins()
-    
-    // Update loading toast to success
-    updateToast(loadingToastId, {
-      type: 'success',
-      message: `Loaded ${result.length} plugins successfully`,
-      duration: 2000
-    })
-    
-    // Clear any previous errors
-    if (errorBoundaryRef.value) {
-      errorBoundaryRef.value.clearError()
-    }
-    
-  } catch (err) {
-    // Remove loading toast
-    removeToast(loadingToastId)
-    
-    const pluginError = err instanceof PluginManagementError ? err : new PluginManagementError(
-      'plugin_not_found' as any,
-      'Failed to load plugins',
-      err instanceof Error ? err.message : 'Unknown error'
-    )
-    
-    error.value = pluginError
-    
-    // Show error toast
-    pluginError('Plugin Management', 'load plugins', pluginError.getUserFriendlyMessage(), {
-      action: {
-        id: 'retry-load',
-        label: 'Retry'
-      }
-    })
-    
-    // Set error in boundary
-    if (errorBoundaryRef.value) {
-      errorBoundaryRef.value.setError(pluginError)
-    }
-    
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const debouncedSearch = () => {
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-  }
-  
-  searchDebounceTimer = setTimeout(() => {
-    loadPlugins()
-  }, 300)
 }
 
 const handleCategoryChange = (category: string) => {
@@ -1044,35 +954,6 @@ const applySuggestion = (suggestion: string) => {
   loadPlugins()
 }
 
-const updateSearchSuggestions = (pluginList: EnhancedSearchPlugin[]) => {
-  // Extract keywords and terms from plugins
-  const terms = new Set<string>()
-  
-  pluginList.forEach(plugin => {
-    // Add plugin name words
-    plugin.name.toLowerCase().split(/\s+/).forEach(word => {
-      if (word.length > 2) terms.add(word)
-    })
-    
-    // Add keywords
-    plugin.metadata.keywords.forEach(keyword => {
-      if (keyword.length > 2) terms.add(keyword.toLowerCase())
-    })
-    
-    // Add category
-    terms.add(plugin.metadata.category.toLowerCase())
-    
-    // Add description words (first few words)
-    const descWords = plugin.description.toLowerCase().split(/\s+/).slice(0, 3)
-    descWords.forEach(word => {
-      if (word.length > 3) terms.add(word)
-    })
-  })
-  
-  // Update available search terms
-  availableSearchTerms.value = Array.from(terms).sort()
-}
-
 const handleRecommendationAction = async (recommendation: any) => {
   try {
     switch (recommendation.type) {
@@ -1131,32 +1012,46 @@ const handleToggleEnabled = async (pluginId: string, enabled: boolean) => {
       pluginError(pluginName, operation, result.error.getUserFriendlyMessage())
     }
   } catch (err) {
-    const pluginError = err instanceof PluginManagementError ? err : new PluginManagementError(
-      'configuration_error' as any,
+    const managementError = err instanceof PluginManagementError ? err : new PluginManagementError(
+      PluginManagementErrorType.CONFIGURATION_ERROR,
       `Failed to ${operation} plugin`,
       err instanceof Error ? err.message : 'Unknown error',
       pluginId
     )
     
-    error.value = pluginError
-    pluginError(pluginName, operation, pluginError.getUserFriendlyMessage())
+    error.value = managementError
+    pluginError(`${pluginName} ${operation} failed`, managementError.getUserFriendlyMessage())
   } finally {
     loadingPlugins.value.delete(pluginId)
   }
 }
 
-const handleConfigure = (pluginId: string) => {
-  const plugin = plugins.value.find(p => p.id === pluginId)
-  if (plugin) {
-    selectedPluginForSettings.value = plugin
+const handleConfigure = (plugin: EnhancedSearchPlugin | string) => {
+  let targetPlugin: EnhancedSearchPlugin | undefined
+  
+  if (typeof plugin === 'string') {
+    targetPlugin = plugins.value.find(p => p.id === plugin)
+  } else {
+    targetPlugin = plugin
+  }
+  
+  if (targetPlugin) {
+    selectedPluginForSettings.value = targetPlugin
     settingsDialogOpen.value = true
   }
 }
 
-const handleUninstall = (pluginId: string) => {
-  const plugin = plugins.value.find(p => p.id === pluginId)
-  if (plugin) {
-    selectedPluginForUninstall.value = plugin
+const handleUninstall = (plugin: EnhancedSearchPlugin | string) => {
+  let targetPlugin: EnhancedSearchPlugin | undefined
+  
+  if (typeof plugin === 'string') {
+    targetPlugin = plugins.value.find(p => p.id === plugin)
+  } else {
+    targetPlugin = plugin
+  }
+  
+  if (targetPlugin) {
+    selectedPluginForUninstall.value = targetPlugin
     uninstallDialogOpen.value = true
   }
 }
@@ -1174,7 +1069,7 @@ const handleViewDetails = async (pluginId: string) => {
     }
   } catch (error) {
     console.error('Failed to load plugin details:', error)
-    pluginError('Failed to load plugin details')
+    pluginError('Error', 'Failed to load plugin details')
   }
 }
 
@@ -1218,8 +1113,8 @@ const handleUninstallConfirm = async (pluginId: string) => {
       isUninstallLoading.value = false
     }
   } catch (err) {
-    const pluginError = err instanceof PluginManagementError ? err : new PluginManagementError(
-      'uninstallation_failed' as any,
+    const managementError = err instanceof PluginManagementError ? err : new PluginManagementError(
+      PluginManagementErrorType.UNINSTALLATION_FAILED,
       'Failed to uninstall plugin',
       err instanceof Error ? err.message : 'Unknown error',
       pluginId,
@@ -1227,13 +1122,8 @@ const handleUninstallConfirm = async (pluginId: string) => {
       'Please try again or restart the application'
     )
     
-    error.value = pluginError
-    pluginError(pluginName, 'uninstall', pluginError.getUserFriendlyMessage(), {
-      action: {
-        id: 'retry-uninstall',
-        label: 'Retry'
-      }
-    })
+    error.value = managementError
+    pluginError(`${pluginName} uninstall failed`, managementError.getUserFriendlyMessage())
     isUninstallLoading.value = false
   }
 }
@@ -1261,15 +1151,15 @@ const handleSettingsSave = async (pluginId: string, settings: Record<string, any
     pluginSuccess(pluginName, 'settings saved')
     await loadPlugins() // Refresh to show any changes
   } catch (err) {
-    const pluginError = new PluginManagementError(
-      'configuration_error' as any,
+    const managementError = new PluginManagementError(
+      PluginManagementErrorType.CONFIGURATION_ERROR,
       'Failed to save plugin settings',
       err instanceof Error ? err.message : 'Unknown error',
       pluginId
     )
     
-    error.value = pluginError
-    pluginError(pluginName, 'save settings', pluginError.getUserFriendlyMessage())
+    error.value = managementError
+    pluginError(`${pluginName} save settings failed`, managementError.getUserFriendlyMessage())
   } finally {
     isSettingsLoading.value = false
   }
@@ -1286,11 +1176,11 @@ const handleSettingsReset = async (pluginId: string) => {
     // Simulate async operation
     await new Promise(resolve => setTimeout(resolve, 500))
     
-    showSuccessMessage('Plugin settings reset to defaults')
+    pluginSuccess('Settings Reset', 'Plugin settings reset to defaults')
     await loadPlugins() // Refresh to show any changes
   } catch (err) {
     error.value = new PluginManagementError(
-      'configuration_error' as any,
+      PluginManagementErrorType.CONFIGURATION_ERROR,
       'Failed to reset plugin settings',
       err instanceof Error ? err.message : 'Unknown error',
       pluginId
@@ -1301,7 +1191,7 @@ const handleSettingsReset = async (pluginId: string) => {
 }
 
 // Utility functions
-const formatCategory = (category: PluginCategory): string => {
+const formatCategory = (category: string): string => {
   return category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ')
 }
 

@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import type { SearchPlugin, PluginSettingSchema } from '../search-plugins'
+import type { PluginSettingSchema, SearchPlugin } from '../search-plugins'
 
 /**
  * Plugin metadata information
@@ -379,6 +379,20 @@ export interface PluginStatistics {
   byCategory: Record<PluginCategory, number>
   /** Number of plugins with health issues */
   withIssues: number
+}
+
+/**
+ * Plugin management result
+ */
+export interface PluginManagementResult {
+  /** Whether the operation was successful */
+  success: boolean
+  /** Plugin identifier */
+  pluginId?: string
+  /** Result message */
+  message?: string
+  /** Error if operation failed */
+  error?: any
 }
 
 /**
