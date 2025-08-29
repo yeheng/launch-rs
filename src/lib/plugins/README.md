@@ -5,6 +5,7 @@ The Plugin Management Service provides a comprehensive layer for managing search
 ## Features
 
 ### Core Functionality
+
 - **Plugin Lifecycle Management**: Install, uninstall, update, enable, and disable plugins
 - **Plugin Discovery**: Search and filter plugins by various criteria
 - **Plugin Validation**: Security and compatibility validation before installation
@@ -12,6 +13,7 @@ The Plugin Management Service provides a comprehensive layer for managing search
 - **Error Handling**: User-friendly error messages with recovery suggestions
 
 ### Enhanced Plugin Information
+
 - **Metadata**: Author, license, keywords, installation date, file size, dependencies
 - **Installation Status**: Built-in vs installed, installation method, current status
 - **Permissions**: Required permissions with security assessment
@@ -158,6 +160,7 @@ await demoErrorHandling()
 ```
 
 Or in the browser console:
+
 ```javascript
 // Available globally when running in browser
 await window.demoPluginManagement()

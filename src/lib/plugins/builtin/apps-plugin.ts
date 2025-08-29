@@ -7,7 +7,7 @@ import {
     TerminalIcon
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
-import type { SearchContext, SearchPlugin, SearchResultItem } from '../search-plugins'
+import type { SearchContext, SearchPlugin, SearchResultItem } from '../../search-plugins'
 
 /**
  * 应用搜索插件

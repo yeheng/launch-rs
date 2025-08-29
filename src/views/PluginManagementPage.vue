@@ -104,19 +104,24 @@
           <!-- Category Filter -->
           <div class="w-full sm:w-48">
             <label for="category-filter" class="sr-only">Filter by category</label>
-            <Select v-model="selectedCategory" @update:value="handleCategoryChange">
+            <Select :value="selectedCategory || 'all'" @update:value="handleCategoryChange">
               <SelectTrigger id="category-filter" aria-label="Filter plugins by category">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent role="listbox" aria-label="Plugin categories">
-                <SelectItem value="" role="option">All Categories</SelectItem>
-                <SelectItem 
-                  v-for="category in availableCategories" 
-                  :key="category" 
-                  :value="category"
-                  role="option"
-                >
-                  {{ formatCategory(category) }}
+                <SelectItem value="all" role="option">All Categories</SelectItem>
+                <template v-if="availableCategories && availableCategories.length > 0">
+                  <SelectItem 
+                    v-for="category in availableCategories" 
+                    :key="category" 
+                    :value="category"
+                    role="option"
+                  >
+                    {{ formatCategory(category) }}
+                  </SelectItem>
+                </template>
+                <SelectItem v-else value="none" disabled role="option" class="text-gray-400">
+                  No categories available
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -125,12 +130,12 @@
           <!-- Status Filter -->
           <div class="w-full sm:w-32">
             <label for="status-filter" class="sr-only">Filter by status</label>
-            <Select v-model="statusFilter" @update:value="handleStatusChange">
+            <Select :value="statusFilter || 'all'" @update:value="handleStatusChange">
               <SelectTrigger id="status-filter" aria-label="Filter plugins by status">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent role="listbox" aria-label="Plugin status options">
-                <SelectItem value="" role="option">All Status</SelectItem>
+                <SelectItem value="all" role="option">All Status</SelectItem>
                 <SelectItem value="enabled" role="option">Enabled</SelectItem>
                 <SelectItem value="disabled" role="option">Disabled</SelectItem>
               </SelectContent>
@@ -732,7 +737,13 @@ const preloadBatchSize = ref(10)
 
 // Computed properties
 const availableCategories = computed(() => {
-  return Object.values(PluginCategory)
+  try {
+    const categories = Object.values(PluginCategory)
+    return Array.isArray(categories) && categories.length > 0 ? categories : []
+  } catch (error) {
+    console.error('Failed to load plugin categories:', error)
+    return []
+  }
 })
 
 const pluginRecommendations = computed(() => {
@@ -879,12 +890,12 @@ const loadPlugins = async () => {
 }
 
 const handleCategoryChange = (category: string) => {
-  selectedCategory.value = category
+  selectedCategory.value = category === 'all' ? '' : category
   loadPlugins()
 }
 
 const handleStatusChange = (status: string) => {
-  statusFilter.value = status
+  statusFilter.value = status === 'all' ? '' : status
   loadPlugins()
 }
 

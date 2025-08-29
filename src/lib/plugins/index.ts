@@ -1,8 +1,8 @@
 import { pluginManager } from '../search-plugin-manager'
-import { AppsSearchPlugin } from './apps-plugin'
-import { CalculatorPlugin, UnitConverterPlugin } from './calculator-plugin'
-import { FileSearchPlugin } from './file-plugin'
-// import { BookmarksPlugin, WebSearchPlugin } from './web-plugin' // 暂时禁用
+import {
+  getAllBuiltinPlugins,
+  loadAndRegisterBuiltinPlugins
+} from './builtin'
 
 /**
  * 注册所有内置插件
@@ -11,36 +11,18 @@ export async function registerBuiltinPlugins() {
   console.log('开始注册内置搜索插件...')
   
   try {
-    // 注册应用搜索插件
-    const appsPlugin = new AppsSearchPlugin()
-    await pluginManager.register(appsPlugin)
-
-    // 注册文件搜索插件
-    const filePlugin = new FileSearchPlugin()
-    await pluginManager.register(filePlugin)
-
-    // 注册计算器插件
-    const calculatorPlugin = new CalculatorPlugin()
-    await pluginManager.register(calculatorPlugin)
-
-    // 注册单位转换插件
-    const unitConverterPlugin = new UnitConverterPlugin()
-    await pluginManager.register(unitConverterPlugin)
-
-    // 注册Web搜索插件 - 暂时禁用
-    // const webSearchPlugin = new WebSearchPlugin()
-    // await pluginManager.register(webSearchPlugin)
-
-    // 注册书签插件 - 暂时禁用
-    // const bookmarksPlugin = new BookmarksPlugin()
-    // await pluginManager.register(bookmarksPlugin)
-
-    console.log('所有内置插件注册完成')
+    // 使用动态加载机制
+    const result = await loadAndRegisterBuiltinPlugins(pluginManager)
     
-    // 打印插件统计信息
-    const plugins = pluginManager.getPlugins()
-    const enabledCount = pluginManager.getEnabledPlugins().length
-    console.log(`共注册 ${plugins.length} 个插件，其中 ${enabledCount} 个已启用`)
+    if (result.success) {
+      console.log('所有内置插件注册完成')
+      console.log(`成功注册 ${result.registered.length} 个插件`)
+      if (result.failed.length > 0) {
+        console.warn(`注册失败的插件: ${result.failed.join(', ')}`)
+      }
+    } else {
+      console.error('插件注册失败:', result.error)
+    }
     
   } catch (error) {
     console.error('注册内置插件时发生错误:', error)
@@ -51,14 +33,7 @@ export async function registerBuiltinPlugins() {
  * 获取所有可用的插件实例（用于配置）
  */
 export function getAllPluginInstances() {
-  return {
-    apps: AppsSearchPlugin,
-    files: FileSearchPlugin,
-    calculator: CalculatorPlugin,
-    units: UnitConverterPlugin,
-    // web: WebSearchPlugin, // 暂时禁用
-    // bookmarks: BookmarksPlugin // 暂时禁用
-  }
+  return getAllBuiltinPlugins()
 }
 
 /**
@@ -125,7 +100,7 @@ export { pluginManager }
 export { pluginManagementService } from './plugin-management-service'
 
 // 导出状态管理
-export { usePluginStateStore, pluginStateListener } from './plugin-state-manager'
+export { pluginStateListener, usePluginStateStore } from './plugin-state-manager'
 
 // 导出统计管理
 export { pluginStatisticsManager, usePluginStatistics } from './plugin-statistics'

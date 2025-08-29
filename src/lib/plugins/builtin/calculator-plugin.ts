@@ -1,5 +1,5 @@
 import { Calculator } from 'lucide-vue-next'
-import type { SearchContext, SearchPlugin, SearchResultItem } from '../search-plugins'
+import type { SearchContext, SearchPlugin, SearchResultItem } from '../../search-plugins'
 
 /**
  * 计算器搜索插件

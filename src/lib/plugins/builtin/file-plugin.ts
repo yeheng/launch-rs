@@ -1,5 +1,5 @@
 import { FileIcon, FolderIcon } from 'lucide-vue-next'
-import type { SearchContext, SearchPlugin, SearchResultItem } from '../search-plugins'
+import type { SearchContext, SearchPlugin, SearchResultItem } from '../../search-plugins'
 
 interface FileSearchResult {
   name: string

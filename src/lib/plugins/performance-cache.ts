@@ -225,9 +225,100 @@ export class PerformanceCache {
     let size = 0
     for (const [key, entry] of this.cache.entries()) {
       size += key.length * 2 // UTF-16 characters
-      size += JSON.stringify(entry.data).length * 2
+      size += this.getObjectSize(entry.data)
       size += 64 // Estimated overhead per entry
     }
+    return size
+  }
+
+  /**
+   * Safe object size estimation avoiding circular references
+   */
+  private getObjectSize(obj: any): number {
+    if (obj === null || obj === undefined) return 0
+    
+    const type = typeof obj
+    if (type === 'string') return obj.length * 2
+    if (type === 'number') return 8
+    if (type === 'boolean') return 4
+    if (type === 'function') return 0 // Functions don't count toward data size
+    
+    // For objects and arrays, use a safer estimation
+    try {
+      // Try JSON.stringify with a replacer function to handle circular refs
+      const jsonString = JSON.stringify(obj, this.getCircularReplacer())
+      return jsonString.length * 2
+    } catch (error) {
+      // Fallback: rough estimation based on object properties
+      return this.estimateObjectSize(obj, new WeakSet())
+    }
+  }
+
+  /**
+   * Get replacer function for JSON.stringify to handle circular references
+   */
+  private getCircularReplacer() {
+    const seen = new WeakSet()
+    return (key: string, value: any) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular]'
+        }
+        seen.add(value)
+      }
+      // Skip Vue reactive objects and other non-serializable items
+      if (value && typeof value === 'object' && (
+        value.__v_isRef || 
+        value.__v_isReactive || 
+        value.__v_isReadonly ||
+        value._isVue ||
+        key.startsWith('_') ||
+        key.startsWith('$')
+      )) {
+        return '[Vue Object]'
+      }
+      return value
+    }
+  }
+
+  /**
+   * Fallback object size estimation with circular reference detection
+   */
+  private estimateObjectSize(obj: any, seen: WeakSet<object>): number {
+    if (obj === null || obj === undefined) return 0
+    
+    const type = typeof obj
+    if (type === 'string') return obj.length * 2
+    if (type === 'number') return 8
+    if (type === 'boolean') return 4
+    if (type !== 'object') return 0
+    
+    if (seen.has(obj)) return 0 // Circular reference detected
+    seen.add(obj)
+    
+    let size = 0
+    try {
+      if (Array.isArray(obj)) {
+        size = obj.length * 8 // Array overhead
+        for (const item of obj) {
+          size += this.estimateObjectSize(item, seen)
+        }
+      } else {
+        const keys = Object.keys(obj)
+        size = keys.length * 16 // Property overhead
+        for (const key of keys) {
+          if (!key.startsWith('_') && !key.startsWith('$')) {
+            size += key.length * 2 // Key size
+            size += this.estimateObjectSize(obj[key], seen)
+          }
+        }
+      }
+    } catch (error) {
+      // If we can't traverse the object, return a fixed estimate
+      size = 1024
+    }
+    
+    seen.delete(obj)
     return size
   }
 
@@ -257,8 +348,40 @@ export class PerformanceCache {
  * Plugin-specific cache keys
  */
 export class CacheKeys {
+  /**
+   * Safe JSON stringify that handles circular references
+   */
+  private static safeStringify(obj: any): string {
+    try {
+      const seen = new WeakSet()
+      return JSON.stringify(obj, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular]'
+          }
+          seen.add(value)
+        }
+        // Skip Vue reactive objects
+        if (value && typeof value === 'object' && (
+          value.__v_isRef || 
+          value.__v_isReactive || 
+          value.__v_isReadonly ||
+          value._isVue ||
+          key.startsWith('_') ||
+          key.startsWith('$')
+        )) {
+          return '[Vue Object]'
+        }
+        return value
+      })
+    } catch (error) {
+      // Fallback to toString or a default representation
+      return String(obj) || '[Object]'
+    }
+  }
+
   static pluginList(options: PluginSearchOptions): string {
-    return `plugins:list:${JSON.stringify(options)}`
+    return `plugins:list:${this.safeStringify(options)}`
   }
 
   static pluginDetails(pluginId: string): string {
@@ -266,7 +389,7 @@ export class CacheKeys {
   }
 
   static pluginSearch(query: string, options: Partial<PluginSearchOptions>): string {
-    return `plugins:search:${query}:${JSON.stringify(options)}`
+    return `plugins:search:${query}:${this.safeStringify(options)}`
   }
 
   static pluginCatalog(): string {
@@ -293,6 +416,38 @@ export const pluginCache = new PerformanceCache({
 })
 
 /**
+ * Safe JSON stringify helper function for cache keys
+ */
+function safeStringify(obj: any): string {
+  try {
+    const seen = new WeakSet()
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular]'
+        }
+        seen.add(value)
+      }
+      // Skip Vue reactive objects
+      if (value && typeof value === 'object' && (
+        value.__v_isRef || 
+        value.__v_isReactive || 
+        value.__v_isReadonly ||
+        value._isVue ||
+        key.startsWith('_') ||
+        key.startsWith('$')
+      )) {
+        return '[Vue Object]'
+      }
+      return value
+    })
+  } catch (error) {
+    // Fallback to toString or a default representation
+    return String(obj) || '[Object]'
+  }
+}
+
+/**
  * Cache decorator for methods
  */
 export function cached(ttl?: number) {
@@ -300,7 +455,9 @@ export function cached(ttl?: number) {
     const originalMethod = descriptor.value
 
     descriptor.value = async function (...args: any[]) {
-      const cacheKey = `${target.constructor.name}:${propertyKey}:${JSON.stringify(args)}`
+      // Use safe stringify for cache key generation
+      const argKey = safeStringify(args)
+      const cacheKey = `${target.constructor.name}:${propertyKey}:${argKey}`
       
       // Try to get from cache
       const cached = pluginCache.get(cacheKey)
