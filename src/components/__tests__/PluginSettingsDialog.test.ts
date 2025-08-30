@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PluginSettingsDialog from '../PluginSettingsDialog.vue'
@@ -450,9 +450,9 @@ describe('PluginSettingsDialog', () => {
     it('should handle file selection', async () => {
       vi.mocked(global.prompt).mockReturnValue('/selected/file.txt')
       
-      const browseButtons = wrapper.findAll('button:contains("Browse")')
-      if (browseButtons.length > 0) {
-        await browseButtons[0].trigger('click')
+      const browseButtons = wrapper.findAll('button').find(btn => btn.text().includes('Browse'))
+      if (browseButtons) {
+        await browseButtons.trigger('click')
         
         expect(global.prompt).toHaveBeenCalled()
         expect(wrapper.emitted('save')).toBeTruthy()
@@ -462,9 +462,9 @@ describe('PluginSettingsDialog', () => {
     it('should handle directory selection', async () => {
       vi.mocked(global.prompt).mockReturnValue('/selected/directory')
       
-      const browseButtons = wrapper.findAll('button:contains("Browse")')
-      if (browseButtons.length > 1) {
-        await browseButtons[1].trigger('click')
+      const browseButtons = wrapper.findAll('button').find(btn => btn.text().includes('Browse'))
+      if (browseButtons) {
+        await browseButtons.trigger('click')
         
         expect(global.prompt).toHaveBeenCalled()
         expect(wrapper.emitted('save')).toBeTruthy()
@@ -474,9 +474,9 @@ describe('PluginSettingsDialog', () => {
     it('should handle cancelled file selection', async () => {
       vi.mocked(global.prompt).mockReturnValue(null)
       
-      const browseButtons = wrapper.findAll('button:contains("Browse")')
-      if (browseButtons.length > 0) {
-        await browseButtons[0].trigger('click')
+      const browseButtons = wrapper.findAll('button').find(btn => btn.text().includes('Browse'))
+      if (browseButtons) {
+        await browseButtons.trigger('click')
         
         expect(global.prompt).toHaveBeenCalled()
         // Should not emit save when cancelled
@@ -496,8 +496,9 @@ describe('PluginSettingsDialog', () => {
     })
 
     it('should reset all settings to default values', async () => {
-      const resetButton = wrapper.find('button:contains("Reset to Defaults")')
-      await resetButton.trigger('click')
+      const resetButton = wrapper.findAll('button').find(btn => btn.text().includes('Reset to Defaults'))
+      expect(resetButton).toBeDefined()
+      await resetButton?.trigger('click')
 
       expect(wrapper.emitted('reset')).toBeTruthy()
       expect(wrapper.emitted('reset')?.[0]).toEqual(['test-plugin'])
@@ -506,8 +507,8 @@ describe('PluginSettingsDialog', () => {
 
     it('should disable reset button when no changes', async () => {
       // Initially should be disabled since no changes made
-      const resetButton = wrapper.find('button:contains("Reset to Defaults")')
-      expect(resetButton.attributes('disabled')).toBeDefined()
+      const resetButton = wrapper.findAll('button').find(btn => btn.text().includes('Reset to Defaults'))
+      expect(resetButton?.attributes('disabled')).toBeDefined()
     })
 
     it('should enable reset button when changes are made', async () => {
@@ -517,8 +518,8 @@ describe('PluginSettingsDialog', () => {
 
       await wrapper.vm.$nextTick()
 
-      const resetButton = wrapper.find('button:contains("Reset to Defaults")')
-      expect(resetButton.attributes('disabled')).toBeUndefined()
+      const resetButton = wrapper.findAll('button').find(btn => btn.text().includes('Reset to Defaults'))
+      expect(resetButton?.attributes('disabled')).toBeUndefined()
     })
   })
 
@@ -533,8 +534,9 @@ describe('PluginSettingsDialog', () => {
     })
 
     it('should emit update:open when close button is clicked', async () => {
-      const closeButton = wrapper.find('button:contains("Close")')
-      await closeButton.trigger('click')
+      const closeButton = wrapper.findAll('button').find(btn => btn.text().includes('Close'))
+      expect(closeButton).toBeDefined()
+      await closeButton?.trigger('click')
 
       expect(wrapper.emitted('update:open')).toBeTruthy()
       expect(wrapper.emitted('update:open')?.[0]).toEqual([false])

@@ -257,8 +257,8 @@
     </DialogContent>
   </Dialog>
 </template>
-<script 
-setup lang="ts">
+
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -314,7 +314,7 @@ const settingsSchema = computed(() => {
   return props.plugin?.settings?.schema || []
 })
 
-const settingsGroups = computed((): SettingsGroup[] => {
+const settingsGroups = computed(() => {
   if (!hasSettings.value) return []
 
   const groups = new Map<string, SettingsGroup>()
@@ -327,7 +327,7 @@ const settingsGroups = computed((): SettingsGroup[] => {
   })
 
   // Group settings by their group property
-  for (const setting of settingsSchema.value) {
+  settingsSchema.value.forEach((setting) => {
     const enhancedSetting = setting as PluginSettingDefinition
     const groupName = enhancedSetting.group || 'default'
     
@@ -340,12 +340,12 @@ const settingsGroups = computed((): SettingsGroup[] => {
     }
     
     groups.get(groupName)!.settings.push(enhancedSetting)
-  }
+  })
 
   // Sort settings within each group by order
-  for (const group of groups.values()) {
+  groups.values().forEach((group) => {
     group.settings.sort((a, b) => (a.order || 0) - (b.order || 0))
-  }
+  })
 
   return Array.from(groups.values()).filter(group => group.settings.length > 0)
 })
@@ -358,19 +358,6 @@ const validationErrorCount = computed(() => {
   return Object.keys(validationErrors.value).length
 })
 
-// Watch for plugin changes
-watch(() => props.plugin, (newPlugin) => {
-  if (newPlugin) {
-    initializeSettings()
-  }
-}, { immediate: true })
-
-watch(() => props.open, (isOpen) => {
-  if (isOpen && props.plugin) {
-    initializeSettings()
-  }
-})
-
 // Methods
 const initializeSettings = () => {
   if (!props.plugin?.settings) return
@@ -378,10 +365,10 @@ const initializeSettings = () => {
   // Initialize current settings with plugin values or defaults
   const settings: Record<string, any> = {}
   
-  for (const setting of settingsSchema.value) {
+  settingsSchema.value.forEach((setting) => {
     const currentValue = props.plugin.settings.values[setting.key]
     settings[setting.key] = currentValue !== undefined ? currentValue : setting.defaultValue
-  }
+  })
   
   currentSettings.value = settings
   validationErrors.value = {}
@@ -444,10 +431,10 @@ const validateSetting = async (key: string, value: any) => {
 const validateAllSettings = async () => {
   validationErrors.value = {}
   
-  for (const setting of settingsSchema.value) {
+  await Promise.all(settingsSchema.value.map(async (setting) => {
     const value = currentSettings.value[setting.key]
     await validateSetting(setting.key, value)
-  }
+  }))
 }
 
 const saveSettings = async () => {
@@ -473,9 +460,9 @@ const resetToDefaults = async () => {
   // Reset all settings to their default values
   const defaultSettings: Record<string, any> = {}
   
-  for (const setting of settingsSchema.value) {
+  settingsSchema.value.forEach((setting) => {
     defaultSettings[setting.key] = setting.defaultValue
-  }
+  })
   
   currentSettings.value = defaultSettings
   validationErrors.value = {}
@@ -589,4 +576,17 @@ const handleClose = () => {
 const handleOpenChange = (open: boolean) => {
   emit('update:open', open)
 }
+
+// Watch for plugin changes
+watch(() => props.plugin, (newPlugin) => {
+  if (newPlugin) {
+    initializeSettings()
+  }
+}, { immediate: true })
+
+watch(() => props.open, (isOpen) => {
+  if (isOpen && props.plugin) {
+    initializeSettings()
+  }
+})
 </script>

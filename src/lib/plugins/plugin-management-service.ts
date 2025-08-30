@@ -181,6 +181,24 @@ export class PluginManagementService {
   }
 
   /**
+   * Reset singleton instance (for testing)
+   */
+  static resetInstance(): void {
+    if (PluginManagementService.instance) {
+      PluginManagementService.instance.stopHealthMonitoring()
+      PluginManagementService.instance = null
+    }
+  }
+
+  /**
+   * Clear cache (for testing)
+   */
+  clearCache(): void {
+    pluginCache.clear()
+    pluginLazyLoader.clear()
+  }
+
+  /**
    * Initialize mock catalog for development
    */
   private initializeMockCatalog(): void {
@@ -245,6 +263,16 @@ export class PluginManagementService {
     this.healthCheckInterval = setInterval(() => {
       this.performHealthChecks()
     }, 5 * 60 * 1000)
+  }
+
+  /**
+   * Stop health monitoring
+   */
+  private stopHealthMonitoring(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval)
+      this.healthCheckInterval = undefined
+    }
   }
 
   /**
@@ -397,11 +425,10 @@ export class PluginManagementService {
       }
 
       // Apply pagination
-      if (options.offset) {
-        plugins = plugins.slice(options.offset)
-      }
-      if (options.limit) {
-        plugins = plugins.slice(0, options.limit)
+      if (options.offset || options.limit) {
+        const start = options.offset || 0
+        const end = options.limit ? start + options.limit : undefined
+        plugins = plugins.slice(start, end)
       }
 
       // Record search performance

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { PersistenceOptions } from 'pinia-plugin-persistedstate'
-import type { EnhancedSearchPlugin, PluginStatistics, PluginCategory } from './types'
+import type { EnhancedSearchPlugin, PluginCategory, PluginStatistics } from './types'
 
 /**
  * Plugin state interface
@@ -351,7 +351,12 @@ export const usePluginStateStore = defineStore('plugin-state', {
   // Persistence configuration
   persist: {
     key: 'plugin-state-store',
-    storage: localStorage,
+    storage: (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+      clear: () => {},
+    },
     paths: ['enabledStates', 'configurations', 'usageMetrics', 'lastSync']
   } as PersistenceOptions
 })
