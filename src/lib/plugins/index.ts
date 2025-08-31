@@ -3,29 +3,33 @@ import {
   getAllBuiltinPlugins,
   loadAndRegisterBuiltinPlugins
 } from './builtin'
+import { logger } from '../logger'
+import { handlePluginError } from '../error-handler'
 
 /**
  * 注册所有内置插件
  */
 export async function registerBuiltinPlugins() {
-  console.log('开始注册内置搜索插件...')
+  logger.info('开始注册内置搜索插件...')
   
   try {
     // 使用动态加载机制
     const result = await loadAndRegisterBuiltinPlugins(pluginManager)
     
     if (result.success) {
-      console.log('所有内置插件注册完成')
-      console.log(`成功注册 ${result.registered.length} 个插件`)
+      logger.info('所有内置插件注册完成')
+      logger.info(`成功注册 ${result.registered.length} 个插件`)
       if (result.failed.length > 0) {
-        console.warn(`注册失败的插件: ${result.failed.join(', ')}`)
+        logger.warn(`注册失败的插件: ${result.failed.join(', ')}`)
       }
     } else {
-      console.error('插件注册失败:', result.error)
+      const appError = handlePluginError('插件注册', result.error)
+      logger.error('插件注册失败', appError)
     }
     
   } catch (error) {
-    console.error('注册内置插件时发生错误:', error)
+    const appError = handlePluginError('注册内置插件', error)
+    logger.error('注册内置插件时发生错误', appError)
   }
 }
 

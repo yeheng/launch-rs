@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import type { PersistenceOptions } from 'pinia-plugin-persistedstate'
 import type { EnhancedSearchPlugin, PluginCategory, PluginStatistics } from './types'
+import { logger } from '../logger'
+import { handlePluginError } from '../error-handler'
 
 /**
  * Plugin state interface
@@ -408,7 +410,8 @@ export class PluginStateListener {
         try {
           listener(stateChangeEvent)
         } catch (error) {
-          console.error('Plugin state change listener error:', error)
+          const appError = handlePluginError('Plugin state change listener', error)
+          logger.error('Plugin state change listener error', appError)
         }
       }
     }

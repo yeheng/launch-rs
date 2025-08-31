@@ -3,6 +3,8 @@ import type { EnhancedSearchPlugin, PluginHealthStatus } from './types'
 import { PluginHealthLevel, PluginIssueType } from './types'
 import { PluginManagementError, PluginManagementErrorType } from './plugin-management-service'
 import { toast } from '@/components/ui/toast'
+import { logger } from '../logger'
+import { handlePluginError } from '../error-handler'
 
 /**
  * Plugin error severity levels
@@ -285,11 +287,12 @@ export class PluginErrorHandler {
         
         case PluginRecoveryStrategy.IGNORE:
           // Do nothing, just log
-          console.warn(`Ignoring plugin error for ${pluginError.pluginId}:`, pluginError.message)
+          logger.warn(`Ignoring plugin error for ${pluginError.pluginId}: ${pluginError.message}`)
           break
       }
     } catch (recoveryError) {
-      console.error(`Recovery strategy failed for plugin ${pluginError.pluginId}:`, recoveryError)
+      const appError = handlePluginError(`插件恢复策略失败 ${pluginError.pluginId}`, recoveryError)
+      logger.error(`Recovery strategy failed for plugin ${pluginError.pluginId}`, appError)
       
       // If recovery fails, try fallback
       this.enableFallback(pluginError.pluginId)
@@ -301,7 +304,7 @@ export class PluginErrorHandler {
    */
   private async retryOperation(pluginError: PluginError): Promise<void> {
     if (pluginError.retryCount >= pluginError.maxRetries) {
-      console.warn(`Max retries exceeded for plugin ${pluginError.pluginId}`)
+      logger.warn(`Max retries exceeded for plugin ${pluginError.pluginId}`)
       this.enableFallback(pluginError.pluginId)
       return
     }
@@ -328,9 +331,10 @@ export class PluginErrorHandler {
         detail: { pluginId, reason: 'error-recovery' }
       }))
       
-      console.log(`Plugin ${pluginId} disabled due to errors`)
+      logger.info(`Plugin ${pluginId} disabled due to errors`)
     } catch (error) {
-      console.error(`Failed to disable plugin ${pluginId}:`, error)
+      const appError = handlePluginError(`禁用插件 ${pluginId}`, error)
+      logger.error(`Failed to disable plugin ${pluginId}`, appError)
     }
   }
 
@@ -344,9 +348,10 @@ export class PluginErrorHandler {
         detail: { pluginId }
       }))
       
-      console.log(`Plugin ${pluginId} restarted for error recovery`)
+      logger.info(`Plugin ${pluginId} restarted for error recovery`)
     } catch (error) {
-      console.error(`Failed to restart plugin ${pluginId}:`, error)
+      const appError = handlePluginError(`重启插件 ${pluginId}`, error)
+      logger.error(`Failed to restart plugin ${pluginId}`, appError)
     }
   }
 
@@ -360,9 +365,10 @@ export class PluginErrorHandler {
         detail: { pluginId }
       }))
       
-      console.log(`Plugin ${pluginId} marked for reinstallation`)
+      logger.info(`Plugin ${pluginId} marked for reinstallation`)
     } catch (error) {
-      console.error(`Failed to reinstall plugin ${pluginId}:`, error)
+      const appError = handlePluginError(`重装插件 ${pluginId}`, error)
+      logger.error(`Failed to reinstall plugin ${pluginId}`, appError)
     }
   }
 
@@ -373,7 +379,7 @@ export class PluginErrorHandler {
     const fallback = this.fallbacks.get(pluginId)
     if (fallback) {
       fallback.showFallbackUI = true
-      console.log(`Fallback enabled for plugin ${pluginId}`)
+      logger.info(`Fallback enabled for plugin ${pluginId}`)
       
       // Show fallback notification
       toast.warning(
@@ -437,7 +443,7 @@ export class PluginErrorHandler {
       
       case PluginErrorSeverity.LOW:
         // Only log low severity errors, don't show toast
-        console.warn(`Plugin ${pluginError.pluginId} error:`, pluginError.message)
+        logger.warn(`Plugin ${pluginError.pluginId} error: ${pluginError.message}`)
         break
     }
   }

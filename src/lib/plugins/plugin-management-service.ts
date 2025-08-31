@@ -5,6 +5,8 @@ import { CacheKeys, cached, pluginCache } from './performance-cache'
 import { MetricType, monitored, performanceMonitor } from './performance-monitor'
 import { usePluginStateStore } from './plugin-state-manager'
 import { pluginStatisticsManager } from './plugin-statistics'
+import { logger } from '../logger'
+import { handlePluginError } from '../error-handler'
 import type {
   EnhancedSearchPlugin,
   PluginCatalogItem,
@@ -166,7 +168,8 @@ export class PluginManagementService {
     try {
       this.stateStore = usePluginStateStore()
     } catch (error) {
-      console.warn('State store not available in PluginManagementService:', error)
+      const appError = handlePluginError('State store not available', error)
+      logger.warn('State store not available in PluginManagementService', appError)
     }
   }
 
@@ -285,7 +288,8 @@ export class PluginManagementService {
       try {
         await this.checkPluginHealth(plugin.id)
       } catch (error) {
-        console.warn(`Health check failed for plugin ${plugin.id}:`, error)
+        const appError = handlePluginError(`Health check failed for plugin ${plugin.id}`, error)
+        logger.warn(`Health check failed for plugin ${plugin.id}`, appError)
       }
     }
   }
@@ -625,7 +629,7 @@ export class PluginManagementService {
 
       // Step 1: Disable plugin first if it's enabled
       if (plugin.enabled) {
-        console.log(`Disabling plugin ${pluginId} before uninstallation...`)
+        logger.info(`Disabling plugin ${pluginId} before uninstallation...`)
         const disableResult = await this.disablePlugin(pluginId)
         if (!disableResult.success) {
           throw new PluginManagementError(
@@ -648,7 +652,7 @@ export class PluginManagementService {
       // Step 4: Unregister from plugin manager
       await pluginManager.unregister(pluginId)
 
-      console.log(`Plugin ${pluginId} uninstalled successfully`)
+      logger.info(`Plugin ${pluginId} uninstalled successfully`)
 
       return {
         success: true,
@@ -697,7 +701,8 @@ export class PluginManagementService {
 
       return dependents
     } catch (error) {
-      console.warn(`Failed to check plugin dependents for ${pluginId}:`, error)
+      const appError = handlePluginError(`Failed to check plugin dependents for ${pluginId}`, error)
+      logger.warn(`Failed to check plugin dependents for ${pluginId}`, appError)
       return []
     }
   }
@@ -706,7 +711,7 @@ export class PluginManagementService {
    * Perform comprehensive plugin cleanup
    */
   private async performPluginCleanup(pluginId: string, plugin: EnhancedSearchPlugin): Promise<void> {
-    console.log(`Starting cleanup for plugin ${pluginId}...`)
+    logger.info(`Starting cleanup for plugin ${pluginId}...`)
 
     try {
       // Step 1: Clear plugin configuration and settings
@@ -727,9 +732,10 @@ export class PluginManagementService {
       // Step 6: Update plugin registry
       await this.updatePluginRegistry(pluginId, 'uninstalled')
 
-      console.log(`Cleanup completed for plugin ${pluginId}`)
+      logger.info(`Cleanup completed for plugin ${pluginId}`)
     } catch (error) {
-      console.error(`Cleanup failed for plugin ${pluginId}:`, error)
+      const appError = handlePluginError(`Cleanup failed for plugin ${pluginId}`, error)
+      logger.error(`Cleanup failed for plugin ${pluginId}`, appError)
       throw new PluginManagementError(
         PluginManagementErrorType.UNINSTALLATION_FAILED,
         'Plugin cleanup failed',
@@ -751,10 +757,11 @@ export class PluginManagementService {
       // 2. Clear plugin preferences from user settings
       // 3. Remove plugin-specific configuration entries
       
-      console.log(`Clearing configuration for plugin ${pluginId}`)
+      logger.info(`Clearing configuration for plugin ${pluginId}`)
       await this.simulateAsyncOperation(200)
     } catch (error) {
-      console.warn(`Failed to clear configuration for plugin ${pluginId}:`, error)
+      const appError = handlePluginError(`Failed to clear configuration for plugin ${pluginId}`, error)
+      logger.warn(`Failed to clear configuration for plugin ${pluginId}`, appError)
     }
   }
 
@@ -768,10 +775,11 @@ export class PluginManagementService {
       // 2. Remove plugin assets and resources
       // 3. Clean up any temporary files created by the plugin
       
-      console.log(`Removing files for plugin ${pluginId} from ${installPath || 'default location'}`)
+      logger.info(`Removing files for plugin ${pluginId} from ${installPath || 'default location'}`)
       await this.simulateAsyncOperation(300)
     } catch (error) {
-      console.warn(`Failed to remove files for plugin ${pluginId}:`, error)
+      const appError = handlePluginError(`Failed to remove files for plugin ${pluginId}`, error)
+      logger.warn(`Failed to remove files for plugin ${pluginId}`, appError)
     }
   }
 
@@ -785,10 +793,11 @@ export class PluginManagementService {
       // 2. Remove temporary files and data
       // 3. Clear plugin search results cache
       
-      console.log(`Clearing cache for plugin ${pluginId}`)
+      logger.info(`Clearing cache for plugin ${pluginId}`)
       await this.simulateAsyncOperation(100)
     } catch (error) {
-      console.warn(`Failed to clear cache for plugin ${pluginId}:`, error)
+      const appError = handlePluginError(`Failed to clear cache for plugin ${pluginId}`, error)
+      logger.warn(`Failed to clear cache for plugin ${pluginId}`, appError)
     }
   }
 
@@ -802,10 +811,11 @@ export class PluginManagementService {
       // 2. Update search result rankings
       // 3. Clear plugin-specific search data
       
-      console.log(`Removing plugin ${pluginId} from search indexes`)
+      logger.info(`Removing plugin ${pluginId} from search indexes`)
       await this.simulateAsyncOperation(150)
     } catch (error) {
-      console.warn(`Failed to remove plugin ${pluginId} from search indexes:`, error)
+      const appError = handlePluginError(`Failed to remove plugin ${pluginId} from search indexes`, error)
+      logger.warn(`Failed to remove plugin ${pluginId} from search indexes`, appError)
     }
   }
 
@@ -819,10 +829,11 @@ export class PluginManagementService {
       // 2. Clear plugin-specific databases
       // 3. Remove plugin bookmarks and favorites
       
-      console.log(`Cleaning up user data for plugin ${pluginId}`)
+      logger.info(`Cleaning up user data for plugin ${pluginId}`)
       await this.simulateAsyncOperation(250)
     } catch (error) {
-      console.warn(`Failed to cleanup user data for plugin ${pluginId}:`, error)
+      const appError = handlePluginError(`Failed to cleanup user data for plugin ${pluginId}`, error)
+      logger.warn(`Failed to cleanup user data for plugin ${pluginId}`, appError)
     }
   }
 
@@ -836,10 +847,11 @@ export class PluginManagementService {
       // 2. Mark plugin as uninstalled
       // 3. Update plugin statistics
       
-      console.log(`Updating registry for plugin ${pluginId} with status: ${status}`)
+      logger.info(`Updating registry for plugin ${pluginId} with status: ${status}`)
       await this.simulateAsyncOperation(100)
     } catch (error) {
-      console.warn(`Failed to update registry for plugin ${pluginId}:`, error)
+      const appError = handlePluginError(`Failed to update registry for plugin ${pluginId}`, error)
+      logger.warn(`Failed to update registry for plugin ${pluginId}`, appError)
     }
   }
 

@@ -8,7 +8,10 @@
     error-title="Plugin Management Error"
     error-message="There was an error loading the plugin management interface."
     fallback-message="You can try refreshing the page or contact support if the problem persists."
-    @error="(err) => console.error('Plugin management error:', err)"
+    @error="(err) => {
+      const appError = handlePluginError('Plugin management error', err)
+      logger.error('Plugin management error', appError)
+    }"
     @retry="loadPlugins"
   >
     <div class="min-h-screen bg-gray-50">
@@ -622,6 +625,8 @@ import { usePluginLazyLoading } from '@/lib/plugins/lazy-loader'
 import { pluginCache } from '@/lib/plugins/performance-cache'
 import { MetricType, performanceMonitor } from '@/lib/plugins/performance-monitor'
 import { withPluginErrorHandling } from '@/lib/plugins/plugin-error-handler'
+import { logger } from '@/lib/logger'
+import { handlePluginError } from '@/lib/error-handler'
 import {
   PluginManagementError,
   PluginManagementErrorType,
@@ -714,7 +719,8 @@ const debouncedSearch = () => {
     performanceMonitor.measureAsync('debounced-search', async () => {
       await loadPlugins()
     }).catch(error => {
-      console.error('Debounced search failed:', error)
+      const appError = handlePluginError('Debounced search', error)
+      logger.error('Debounced search failed', appError)
     })
   }, 300)
 }
@@ -741,7 +747,8 @@ const availableCategories = computed(() => {
     const categories = Object.values(PluginCategory)
     return Array.isArray(categories) && categories.length > 0 ? categories : []
   } catch (error) {
-    console.error('Failed to load plugin categories:', error)
+    const appError = handlePluginError('Load plugin categories', error)
+    logger.error('Failed to load plugin categories', appError)
     return []
   }
 })
@@ -777,13 +784,14 @@ const handleVisibleRangeChange = (start: number, end: number) => {
   
   // Preload in background
   preloadMetadata(pluginIds).catch(error => {
-    console.warn('Failed to preload plugin metadata:', error)
+    const appError = handlePluginError('Preload plugin metadata', error)
+    logger.warn('Failed to preload plugin metadata', appError)
   })
 }
 
 const handleLoadMore = () => {
   // This could be used for infinite scrolling if needed
-  console.log('Load more requested')
+  logger.debug('Load more requested')
 }
 
 // Methods
@@ -846,7 +854,8 @@ const loadPlugins = async () => {
     if (result.length > 0) {
       const firstBatch = result.slice(0, preloadBatchSize.value).map(p => p.id)
       preloadDetails(firstBatch).catch(error => {
-        console.warn('Failed to preload plugin details:', error)
+        const appError = handlePluginError('Preload plugin details', error)
+        logger.warn('Failed to preload plugin details', appError)
       })
     }
     
@@ -858,7 +867,8 @@ const loadPlugins = async () => {
       duration: 2000
     })
   } catch (err) {
-    console.error('Failed to load plugins:', err)
+    const appError = handlePluginError('Load plugins', err)
+    logger.error('Failed to load plugins', appError)
     
     if (err instanceof PluginManagementError) {
       error.value = err
@@ -988,7 +998,8 @@ const handleRecommendationAction = async (recommendation: any) => {
         break
     }
   } catch (error) {
-    console.error('Failed to execute recommendation:', error)
+    const appError = handlePluginError('Execute recommendation', error)
+    logger.error('Failed to execute recommendation', appError)
   }
 }
 
@@ -1079,7 +1090,8 @@ const handleViewDetails = async (pluginId: string) => {
       detailsModalOpen.value = true
     }
   } catch (error) {
-    console.error('Failed to load plugin details:', error)
+    const appError = handlePluginError('Load plugin details', error)
+    logger.error('Failed to load plugin details', appError)
     pluginError('Error', 'Failed to load plugin details')
   }
 }
@@ -1153,7 +1165,7 @@ const handleSettingsSave = async (pluginId: string, settings: Record<string, any
   try {
     await withPluginErrorHandling(pluginId, async () => {
       // In a real implementation, this would save the settings
-      console.log('Saving settings for plugin:', pluginId, settings)
+      logger.info('Saving settings for plugin', { pluginId, settings })
       
       // Simulate async operation
       await new Promise(resolve => setTimeout(resolve, 1000))
@@ -1182,7 +1194,7 @@ const handleSettingsReset = async (pluginId: string) => {
   
   try {
     // In a real implementation, this would reset the settings
-    console.log('Resetting settings for plugin:', pluginId)
+    logger.info('Resetting settings for plugin', { pluginId })
     
     // Simulate async operation
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -1368,7 +1380,7 @@ const handleToastActionClick = (toastId: string, actionId: string) => {
       break
     case 'view-details':
       // Show error details - could open a modal or navigate to error log
-      console.log('View error details requested')
+      logger.debug('View error details requested')
       break
   }
   

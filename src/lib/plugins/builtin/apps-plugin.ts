@@ -8,6 +8,8 @@ import {
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import type { SearchContext, SearchPlugin, SearchResultItem } from '../../search-plugins'
+import { logger } from '../../logger'
+import { handlePluginError } from '../../error-handler'
 
 /**
  * 应用搜索插件
@@ -79,7 +81,7 @@ export class AppsSearchPlugin implements SearchPlugin {
       }
     ]
 
-    console.log('应用搜索插件初始化完成')
+    logger.info('应用搜索插件初始化完成')
   }
 
   private initializeAppData(): void {
@@ -89,7 +91,7 @@ export class AppsSearchPlugin implements SearchPlugin {
         description: '打开应用设置',
         icon: SettingsIcon,
         keywords: ['设置', 'settings', 'config', '配置', 'preferences'],
-        action: () => console.log('路由未初始化')
+        action: () => logger.warn('路由未初始化')
       },
       {
         title: '终端',
@@ -177,14 +179,15 @@ export class AppsSearchPlugin implements SearchPlugin {
     try {
     //   const { invoke } = await import('@tauri-apps/api/core')
       // 这里可以调用系统命令打开终端
-      console.log('打开终端功能待实现')
+      logger.warn('打开终端功能待实现')
     } catch (error) {
-      console.error('打开终端失败:', error)
+      const appError = handlePluginError('打开终端', error)
+      logger.error('打开终端失败', appError)
     }
   }
 
   private openAssistant(): void {
-    console.log('打开快速助手功能待实现')
+    logger.info('打开快速助手功能待实现')
   }
 
   private async testGlobalShortcut(): Promise<void> {
@@ -194,9 +197,10 @@ export class AppsSearchPlugin implements SearchPlugin {
         shortcutId: 'toggle_window',
         accelerator: 'Alt+Space'
       })
-      console.log('全局快捷键 Alt+Space 注册成功！')
+      logger.success('全局快捷键 Alt+Space 注册成功！')
     } catch (error) {
-      console.error('注册全局快捷键失败:', error)
+      const appError = handlePluginError('注册全局快捷键', error)
+      logger.error('注册全局快捷键失败', appError)
     }
   }
 
@@ -204,9 +208,10 @@ export class AppsSearchPlugin implements SearchPlugin {
     try {
       const { invoke } = await import('@tauri-apps/api/core')
       await invoke('toggle_headless', { headless: true })
-      console.log('已切换到无头模式')
+      logger.success('已切换到无头模式')
     } catch (error) {
-      console.error('切换无头模式失败:', error)
+      const appError = handlePluginError('切换无头模式', error)
+      logger.error('切换无头模式失败', appError)
     }
   }
 }

@@ -1,5 +1,7 @@
 import { Calculator } from 'lucide-vue-next'
 import type { SearchContext, SearchPlugin, SearchResultItem } from '../../search-plugins'
+import { logger } from '../../logger'
+import { handlePluginError } from '../../error-handler'
 
 /**
  * 计算器搜索插件
@@ -38,7 +40,7 @@ export class CalculatorPlugin implements SearchPlugin {
   }
 
   async initialize(): Promise<void> {
-    console.log('计算器插件初始化完成')
+    logger.info('计算器插件初始化完成')
   }
 
   async search(context: SearchContext): Promise<SearchResultItem[]> {
@@ -71,7 +73,8 @@ export class CalculatorPlugin implements SearchPlugin {
         }
       }]
     } catch (error) {
-      console.error('计算失败:', error)
+      const appError = handlePluginError('计算', error)
+      logger.error('计算失败', appError)
       return []
     }
   }
@@ -157,9 +160,10 @@ export class CalculatorPlugin implements SearchPlugin {
     try {
       const formatted = this.formatResult(result)
       await navigator.clipboard.writeText(formatted)
-      console.log(`计算结果 ${formatted} 已复制到剪贴板`)
+      logger.info(`计算结果 ${formatted} 已复制到剪贴板`)
     } catch (error) {
-      console.error('复制结果失败:', error)
+      const appError = handlePluginError('复制结果', error)
+      logger.error('复制结果失败', appError)
     }
   }
 }
@@ -206,7 +210,7 @@ export class UnitConverterPlugin implements SearchPlugin {
   }
 
   async initialize(): Promise<void> {
-    console.log('单位转换插件初始化完成')
+    logger.info('单位转换插件初始化完成')
   }
 
   async search(context: SearchContext): Promise<SearchResultItem[]> {
@@ -302,9 +306,10 @@ export class UnitConverterPlugin implements SearchPlugin {
   private async copyResult(result: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(result)
-      console.log(`转换结果 ${result} 已复制到剪贴板`)
+      logger.info(`转换结果 ${result} 已复制到剪贴板`)
     } catch (error) {
-      console.error('复制结果失败:', error)
+      const appError = handlePluginError('复制结果', error)
+      logger.error('复制结果失败', appError)
     }
   }
 }

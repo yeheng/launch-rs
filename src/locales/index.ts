@@ -2,6 +2,8 @@ import { useUserStore } from '@/store/modules/user';
 import { createI18n } from 'vue-i18n';
 import enUS from './en-US/common.json';
 import zhCN from './zh-CN/common.json';
+import { logger } from '../lib/logger';
+import { handlePluginError } from '../lib/error-handler';
 
 // 语言包
 export const messages = {
@@ -26,7 +28,8 @@ export function initI18nLanguage() {
             i18n.global.locale.value = userStore.preferences.language;
         }
     } catch (error) {
-        console.warn('Failed to load user language preference, using default:', error);
+        const appError = handlePluginError('Failed to load user language preference', error);
+  logger.warn('Failed to load user language preference, using default:', appError);
     }
 }
 

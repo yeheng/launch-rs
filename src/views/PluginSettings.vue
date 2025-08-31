@@ -158,6 +158,8 @@ import { Switch } from '@/components/ui/switch'
 import { pluginManager } from '@/lib/plugins'
 import type { SearchPlugin } from '@/lib/search-plugins'
 import { computed, onMounted, ref } from 'vue'
+import { logger } from '@/lib/logger'
+import { handlePluginError } from '@/lib/error-handler'
 
 const plugins = ref<SearchPlugin[]>([])
 const isLoading = ref(false)
@@ -188,9 +190,10 @@ const togglePlugin = async (pluginId: string, enabled: boolean) => {
     // 刷新插件列表
     loadPlugins()
     
-    console.log(`插件 ${pluginId} ${enabled ? '已启用' : '已禁用'}`)
+    logger.info(`插件 ${pluginId} ${enabled ? '已启用' : '已禁用'}`)
   } catch (error) {
-    console.error(`切换插件状态失败:`, error)
+    const appError = handlePluginError('切换插件状态', error)
+    logger.error(`切换插件状态失败`, appError)
     // 这里可以添加错误提示
   } finally {
     isLoading.value = false
@@ -211,9 +214,10 @@ const updatePluginSetting = async (pluginId: string, settingKey: string, value: 
       plugin.settings.onChange(settingKey, value)
     }
     
-    console.log(`插件 ${pluginId} 设置 ${settingKey} 已更新为:`, value)
+    logger.info(`插件 ${pluginId} 设置 ${settingKey} 已更新为:`, value)
   } catch (error) {
-    console.error(`更新插件设置失败:`, error)
+    const appError = handlePluginError('更新插件设置', error)
+    logger.error(`更新插件设置失败`, appError)
   }
 }
 
@@ -224,7 +228,7 @@ const testPlugin = async (pluginId: string) => {
     const results = await pluginManager.search('test', 5)
     const pluginResults = results.filter(r => r.source === pluginId)
     
-    console.log(`插件 ${pluginId} 测试结果:`, pluginResults)
+    logger.debug(`插件 ${pluginId} 测试结果:`, pluginResults)
     
     if (pluginResults.length > 0) {
       alert(`插件测试成功！返回了 ${pluginResults.length} 个结果`)
@@ -232,7 +236,8 @@ const testPlugin = async (pluginId: string) => {
       alert('插件测试完成，但没有匹配的结果')
     }
   } catch (error) {
-    console.error(`测试插件失败:`, error)
+    const appError = handlePluginError('测试插件', error)
+    logger.error(`测试插件失败`, appError)
     alert('插件测试失败')
   } finally {
     isLoading.value = false
@@ -241,12 +246,12 @@ const testPlugin = async (pluginId: string) => {
 
 // 监听插件管理器事件
 const onPluginRegistered = (plugin: SearchPlugin) => {
-  console.log(`插件 ${plugin.name} 已注册`)
+  logger.info(`插件 ${plugin.name} 已注册`)
   loadPlugins()
 }
 
 const onPluginUnregistered = (pluginId: string) => {
-  console.log(`插件 ${pluginId} 已取消注册`)
+  logger.info(`插件 ${pluginId} 已取消注册`)
   loadPlugins()
 }
 

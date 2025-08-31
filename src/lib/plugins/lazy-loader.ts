@@ -6,6 +6,8 @@
 import type { EnhancedSearchPlugin, PluginCatalogItem } from './types'
 import { pluginCache, CacheKeys } from './performance-cache'
 import { performanceMonitor, MetricType } from './performance-monitor'
+import { logger } from '../logger'
+import { handlePluginError } from '../error-handler'
 
 /**
  * Lazy loading configuration
@@ -120,7 +122,8 @@ export class PluginLazyLoader {
       return result
     } catch (error) {
       this.detailsState.failed.add(pluginId)
-      console.error(`Failed to load plugin details for ${pluginId}:`, error)
+      const appError = handlePluginError(`加载插件详情 ${pluginId}`, error)
+      logger.error(`Failed to load plugin details for ${pluginId}`, appError)
       return null
     } finally {
       this.detailsState.loading.delete(pluginId)
@@ -175,7 +178,8 @@ export class PluginLazyLoader {
       return result
     } catch (error) {
       this.metadataState.failed.add(pluginId)
-      console.error(`Failed to load plugin metadata for ${pluginId}:`, error)
+      const appError = handlePluginError(`加载插件元数据 ${pluginId}`, error)
+      logger.error(`Failed to load plugin metadata for ${pluginId}`, appError)
       return null
     } finally {
       this.metadataState.loading.delete(pluginId)

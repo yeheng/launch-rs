@@ -6,6 +6,8 @@ import "./index.css";
 import { initializeGlobalShortcuts } from './lib/shortcuts';
 import i18n, { initI18nLanguage } from './locales';
 import router from "./router";
+import { logger } from './lib/logger';
+import { handlePluginError } from './lib/error-handler';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -20,7 +22,8 @@ initI18nLanguage();
 
 // 初始化全局快捷键（在pinia加载之后）
 initializeGlobalShortcuts().catch(error => {
-    console.warn('初始化全局快捷键失败:', error);
+    const appError = handlePluginError('初始化全局快捷键', error);
+  logger.warn('初始化全局快捷键失败:', appError);
 });
 
 app.mount("#app");

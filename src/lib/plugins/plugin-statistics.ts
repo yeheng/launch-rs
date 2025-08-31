@@ -1,5 +1,7 @@
 import type { PluginStatistics, PluginCategory } from './types'
 import { usePluginStateStore } from './plugin-state-manager'
+import { logger } from '../logger'
+import { handlePluginError } from '../error-handler'
 
 /**
  * Plugin statistics utilities
@@ -11,7 +13,8 @@ export class PluginStatisticsManager {
     try {
       this.stateStore = usePluginStateStore()
     } catch (error) {
-      console.warn('State store not available for statistics:', error)
+      const appError = handlePluginError('State store not available for statistics', error)
+      logger.warn('State store not available for statistics:', appError)
     }
   }
 

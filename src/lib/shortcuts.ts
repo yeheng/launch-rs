@@ -1,6 +1,8 @@
 import { useUserStore } from '@/store/modules/user'
 import { invoke } from '@tauri-apps/api/core'
 import { ref } from 'vue'
+import { logger } from './logger'
+import { handlePluginError } from './error-handler'
 
 // 快捷键类型定义
 export type ShortcutKey = 'toggleSearch' | 'navigateUp' | 'navigateDown' | 'launch' | 'adminLaunch' | 'clearSearch'
@@ -42,10 +44,11 @@ export async function registerGlobalShortcut(shortcutId: string, keys: string[])
             shortcutId,
             accelerator
         })
-        console.log(`全局快捷键 ${shortcutId} (${accelerator}) 注册成功`)
+        logger.info(`全局快捷键 ${shortcutId} (${accelerator}) 注册成功`)
         return true
     } catch (error) {
-        console.error(`注册全局快捷键失败:`, error)
+        const appError = handlePluginError(`注册全局快捷键 ${shortcutId}`, error)
+        logger.error(`注册全局快捷键失败`, appError)
         return false
     }
 }
@@ -54,10 +57,11 @@ export async function registerGlobalShortcut(shortcutId: string, keys: string[])
 export async function unregisterGlobalShortcut(shortcutId: string): Promise<boolean> {
     try {
         await invoke('unregister_global_shortcut', { shortcutId })
-        console.log(`全局快捷键 ${shortcutId} 注销成功`)
+        logger.info(`全局快捷键 ${shortcutId} 注销成功`)
         return true
     } catch (error) {
-        console.error(`注销全局快捷键失败:`, error)
+        const appError = handlePluginError(`注销全局快捷键 ${shortcutId}`, error)
+        logger.error(`注销全局快捷键失败`, appError)
         return false
     }
 }

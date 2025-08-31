@@ -1,5 +1,7 @@
 import { FileIcon, FolderIcon } from 'lucide-vue-next'
 import type { SearchContext, SearchPlugin, SearchResultItem } from '../../search-plugins'
+import { logger } from '../../logger'
+import { handlePluginError } from '../../error-handler'
 
 interface FileSearchResult {
   name: string
@@ -54,7 +56,7 @@ export class FileSearchPlugin implements SearchPlugin {
   }
 
   async initialize(): Promise<void> {
-    console.log('文件搜索插件初始化完成')
+    logger.info('文件搜索插件初始化完成')
   }
 
   async search(context: SearchContext): Promise<SearchResultItem[]> {
@@ -91,7 +93,8 @@ export class FileSearchPlugin implements SearchPlugin {
 
       return results
     } catch (error) {
-      console.error('文件搜索失败:', error)
+      const appError = handlePluginError('文件搜索', error)
+      logger.error('文件搜索失败', appError)
       return []
     }
   }
@@ -178,15 +181,17 @@ export class FileSearchPlugin implements SearchPlugin {
       // 使用 Tauri 的 shell API 打开文件
       const { invoke } = await import('@tauri-apps/api/core')
       await invoke('plugin:opener|open', { path: filePath })
-      console.log(`打开文件: ${filePath}`)
+      logger.info(`打开文件: ${filePath}`)
     } catch (error) {
-      console.error('打开文件失败:', error)
+      const appError = handlePluginError('打开文件', error)
+      logger.error('打开文件失败', appError)
       // 作为备选，可以复制路径到剪贴板
       try {
         await navigator.clipboard.writeText(filePath)
-        console.log('文件路径已复制到剪贴板')
+        logger.info('文件路径已复制到剪贴板')
       } catch (clipboardError) {
-        console.error('复制路径到剪贴板失败:', clipboardError)
+        const clipboardAppError = handlePluginError('复制路径到剪贴板', clipboardError)
+        logger.error('复制路径到剪贴板失败', clipboardAppError)
       }
     }
   }

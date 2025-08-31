@@ -1,3 +1,6 @@
+import { logger } from '../../logger'
+import { handlePluginError } from '../../error-handler'
+
 /**
  * Built-in Plugins Module
  * 
@@ -155,7 +158,7 @@ export function getEnabledBuiltinPluginIds() {
  * @returns Promise that resolves when all plugins are registered
  */
 export async function loadAndRegisterBuiltinPlugins(pluginManager: any) {
-  console.log('开始动态加载内置搜索插件...')
+  logger.info('开始动态加载内置搜索插件...')
   
   const registeredPlugins = []
   const failedPlugins = []
@@ -169,7 +172,7 @@ export async function loadAndRegisterBuiltinPlugins(pluginManager: any) {
         // Get plugin class from registry
         const PluginClass = getBuiltinPlugin(pluginId)
         if (!PluginClass) {
-          console.warn(`插件类未找到: ${pluginId}`)
+          logger.warn(`插件类未找到: ${pluginId}`)
           failedPlugins.push(pluginId)
           continue
         }
@@ -181,24 +184,25 @@ export async function loadAndRegisterBuiltinPlugins(pluginManager: any) {
         await pluginManager.register(pluginInstance)
         registeredPlugins.push(pluginId)
         
-        console.log(`✅ 成功注册插件: ${pluginId}`)
+        logger.success(`成功注册插件: ${pluginId}`)
         
       } catch (error) {
-        console.error(`❌ 注册插件失败 ${pluginId}:`, error)
+        const appError = handlePluginError(`注册插件 ${pluginId}`, error)
+        logger.error(`注册插件失败 ${pluginId}`, appError)
         failedPlugins.push(pluginId)
       }
     }
     
-    console.log(`内置插件加载完成: ${registeredPlugins.length} 个成功, ${failedPlugins.length} 个失败`)
+    logger.info(`内置插件加载完成: ${registeredPlugins.length} 个成功, ${failedPlugins.length} 个失败`)
     
     if (failedPlugins.length > 0) {
-      console.warn('失败的插件:', failedPlugins)
+      logger.warn('失败的插件:', failedPlugins)
     }
     
     // 打印插件统计信息
     const plugins = pluginManager.getPlugins()
     const enabledCount = pluginManager.getEnabledPlugins().length
-    console.log(`共注册 ${plugins.length} 个插件，其中 ${enabledCount} 个已启用`)
+    logger.info(`共注册 ${plugins.length} 个插件，其中 ${enabledCount} 个已启用`)
     
     return {
       success: true,
@@ -208,7 +212,8 @@ export async function loadAndRegisterBuiltinPlugins(pluginManager: any) {
     }
     
   } catch (error) {
-    console.error('动态加载内置插件时发生严重错误:', error)
+    const appError = handlePluginError('动态加载内置插件', error)
+    logger.error('动态加载内置插件时发生严重错误', appError)
     return {
       success: false,
       registered: registeredPlugins,
@@ -227,7 +232,7 @@ export async function loadAndRegisterBuiltinPlugins(pluginManager: any) {
  * @returns Promise that resolves when all plugins are loaded
  */
 export async function loadBuiltinPluginsWithConfig(pluginManager: any, config?: Record<string, any>) {
-  console.log('开始加载内置插件（带配置）...')
+  logger.info('开始加载内置插件（带配置）...')
   
   const result = await loadAndRegisterBuiltinPlugins(pluginManager)
   
@@ -259,9 +264,10 @@ export async function loadBuiltinPluginsWithConfig(pluginManager: any, config?: 
           }
         }
       }
-      console.log('插件配置应用完成')
+      logger.info('插件配置应用完成')
     } catch (error) {
-      console.error('应用插件配置时发生错误:', error)
+      const appError = handlePluginError('应用插件配置', error)
+      logger.error('应用插件配置时发生错误', appError)
       result.success = false
       result.error = error instanceof Error ? error.message : 'Configuration error'
     }

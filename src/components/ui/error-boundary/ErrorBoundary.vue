@@ -98,6 +98,8 @@
 <script setup lang="ts">
 import { ref, computed, onErrorCaptured, watch } from 'vue'
 import { Button } from '@/components/ui/button'
+import { logger } from '@/lib/logger'
+import { handlePluginError } from '@/lib/error-handler'
 
 // Icon components
 const AlertTriangleIcon = { template: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' }
@@ -173,7 +175,8 @@ const errorDetails = computed(() => {
 
 // Error capture
 onErrorCaptured((error: Error) => {
-  console.error('ErrorBoundary caught error:', error)
+  const appError = handlePluginError('ErrorBoundary caught error', error)
+  logger.error('ErrorBoundary caught error', appError)
   
   hasError.value = true
   currentError.value = error
@@ -209,7 +212,8 @@ const handleRetry = async () => {
     
     emit('retry')
   } catch (error) {
-    console.error('Retry failed:', error)
+    const appError = handlePluginError('Retry failed', error)
+    logger.error('Retry failed', appError)
     // Keep error state, but stop loading
   } finally {
     isRetrying.value = false
@@ -232,7 +236,8 @@ const handleReset = async () => {
     
     emit('reset')
   } catch (error) {
-    console.error('Reset failed:', error)
+    const appError = handlePluginError('Reset failed', error)
+    logger.error('Reset failed', appError)
   }
 }
 
@@ -246,7 +251,8 @@ const handleReport = async () => {
     
     emit('report', currentError.value)
   } catch (error) {
-    console.error('Report failed:', error)
+    const appError = handlePluginError('Report failed', error)
+    logger.error('Report failed', appError)
   }
 }
 

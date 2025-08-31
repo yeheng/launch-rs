@@ -2,6 +2,8 @@
 // 此文件展示如何在前端代码中控制Tauri窗口的无头模式
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { logger } from './logger';
+import { handlePluginError } from './error-handler';
 
 /**
  * 切换窗口的无头模式
@@ -15,16 +17,17 @@ export async function toggleHeadlessMode(headless: boolean): Promise<void> {
       const currentWindow = getCurrentWindow();
       await currentWindow.hide();
       await currentWindow.setDecorations(false);
-      console.log('已启用无头模式');
+      logger.info('已启用无头模式');
     } else {
       // 禁用无头模式：显示窗口并添加装饰
       const currentWindow = getCurrentWindow();
       await currentWindow.setDecorations(true);
       await currentWindow.show();
-      console.log('已禁用无头模式');
+      logger.info('已禁用无头模式');
     }
   } catch (error) {
-    console.error('切换无头模式失败:', error);
+    const appError = handlePluginError('切换无头模式', error);
+    logger.error('切换无头模式失败', appError);
     throw error;
   }
 }
@@ -53,5 +56,5 @@ export function headlessExample(): void {
     }
   });
   
-  console.log('无头窗口控制已初始化，使用Alt+H快捷键可显示窗口');
+  logger.info('无头窗口控制已初始化，使用Alt+H快捷键可显示窗口');
 }

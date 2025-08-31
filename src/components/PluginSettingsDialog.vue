@@ -267,6 +267,8 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { EnhancedSearchPlugin, PluginSettingDefinition } from '@/lib/plugins/types'
+import { logger } from '@/lib/logger'
+import { handlePluginError } from '@/lib/error-handler'
 
 interface Props {
   /** Whether the dialog is open */
@@ -450,7 +452,8 @@ const saveSettings = async () => {
     emit('save', props.plugin.id, { ...currentSettings.value })
     hasChanges.value = false
   } catch (error) {
-    console.error('Failed to save plugin settings:', error)
+    const appError = handlePluginError('Save plugin settings', error)
+    logger.error('Failed to save plugin settings', appError)
   }
 }
 
@@ -540,7 +543,8 @@ const selectFile = async (key: string) => {
       updateSetting(key, selected)
     }
   } catch (error) {
-    console.error('Failed to select file:', error)
+    const appError = handlePluginError('Select file', error)
+    logger.error('Failed to select file', appError)
   }
 }
 
@@ -554,7 +558,8 @@ const selectDirectory = async (key: string) => {
       updateSetting(key, selected)
     }
   } catch (error) {
-    console.error('Failed to select directory:', error)
+    const appError = handlePluginError('Select directory', error)
+    logger.error('Failed to select directory', appError)
   }
 }
 

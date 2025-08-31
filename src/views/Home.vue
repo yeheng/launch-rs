@@ -137,6 +137,9 @@ import { SearchIcon, SettingsIcon } from 'lucide-vue-next'
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { logger } from '@/lib/logger'
+import { handlePluginError } from '@/lib/error-handler'
+import { SEARCH_CONFIG } from '@/lib/config'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -150,7 +153,7 @@ const isSearching = ref(false)
 
 // 搜索防抖
 let searchTimer: ReturnType<typeof setTimeout> | null = null
-const SEARCH_DEBOUNCE = 300 // 300ms 防抖
+const SEARCH_DEBOUNCE = SEARCH_CONFIG.debounceTime
 
 // 搜索函数
 const handleSearch = () => {
@@ -176,7 +179,8 @@ const handleSearch = () => {
       searchResults.value = results
       selectedIndex.value = 0
     } catch (error) {
-      console.error('搜索失败:', error)
+      const appError = handlePluginError('搜索', error)
+      logger.error('搜索失败', appError)
       searchResults.value = []
     } finally {
       isSearching.value = false
@@ -226,7 +230,8 @@ const selectResult = async (result: SearchResultItem) => {
     searchResults.value = []
     selectedIndex.value = 0
   } catch (error) {
-    console.error('执行操作失败:', error)
+    const appError = handlePluginError('执行搜索结果', error)
+    logger.error('执行操作失败', appError)
   }
 }
 
@@ -248,9 +253,10 @@ const testGlobalShortcut = async () => {
       shortcutId: 'toggle_window',
       accelerator: 'Alt+Space'
     })
-    console.log('全局快捷键 Alt+Space 注册成功！请在任意地方按下 Alt+Space 来切换窗口显示/隐藏')
+    logger.success('全局快捷键 Alt+Space 注册成功！请在任意地方按下 Alt+Space 来切换窗口显示/隐藏')
   } catch (error) {
-    console.error('注册全局快捷键失败:', error)
+    const appError = handlePluginError('注册全局快捷键', error)
+    logger.error('注册全局快捷键失败', appError)
   }
 }
 
@@ -262,15 +268,15 @@ const getPluginDisplayName = (pluginId: string): string => {
 
 // 插件管理器事件监听
 const onSearchStart = (query: string) => {
-  console.log(`开始搜索: ${query}`)
+  logger.debug(`开始搜索: ${query}`)
 }
 
 const onSearchResults = (results: SearchResultItem[]) => {
-  console.log(`搜索完成，获得 ${results.length} 个结果`)
+  logger.debug(`搜索完成，获得 ${results.length} 个结果`)
 }
 
 const onSearchEnd = (query: string, resultCount: number) => {
-  console.log(`搜索结束: "${query}" -> ${resultCount} 个结果`)
+  logger.debug(`搜索结束: "${query}" -> ${resultCount} 个结果`)
 }
 
 // 组件挂载和卸载
@@ -290,9 +296,10 @@ onMounted(async () => {
       searchInput.value.focus()
     }
     
-    console.log('搜索插件系统初始化完成')
+    logger.success('搜索插件系统初始化完成')
   } catch (error) {
-    console.error('初始化搜索插件系统失败:', error)
+    const appError = handlePluginError('初始化搜索插件系统', error)
+    logger.error('初始化搜索插件系统失败', appError)
   }
 })
 

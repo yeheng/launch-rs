@@ -7,6 +7,8 @@ import type {
 } from './search-plugins'
 import { usePluginStateStore, pluginStateListener, type PluginStateChangeEvent } from './plugins/plugin-state-manager'
 import type { EnhancedSearchPlugin, PluginCategory } from './plugins/types'
+import { logger } from './logger'
+import { handlePluginError } from './error-handler'
 
 /**
  * 搜索插件管理器实现
@@ -24,13 +26,13 @@ export class SearchPluginManager implements PluginManager {
   private async initialize() {
     if (this.isInitialized) return
 
-    console.log('初始化搜索插件管理器')
+    logger.info('初始化搜索插件管理器')
 
     // Initialize state store
     try {
       this.stateStore = usePluginStateStore()
     } catch (error) {
-      console.warn('State store not available, running without persistence:', error)
+      logger.warn('State store not available, running without persistence:', error)
     }
 
     // Setup state change listeners
@@ -68,9 +70,10 @@ export class SearchPluginManager implements PluginManager {
       // Update statistics
       this.updateStatistics()
 
-      console.log(`插件 ${plugin.name} (${plugin.id}) 注册成功`)
+      logger.info(`插件 ${plugin.name} (${plugin.id}) 注册成功`)
     } catch (error) {
-      console.error(`注册插件 ${plugin.id} 失败:`, error)
+      const appError = handlePluginError(`注册插件 ${plugin.id}`, error)
+      logger.error(`注册插件 ${plugin.id} 失败`, appError)
       throw error
     }
   }
@@ -81,7 +84,7 @@ export class SearchPluginManager implements PluginManager {
   async unregister(pluginId: string): Promise<void> {
     const plugin = this.plugins.get(pluginId)
     if (!plugin) {
-      console.warn(`插件 ${pluginId} 不存在`)
+      logger.warn(`插件 ${pluginId} 不存在`)
       return
     }
 
@@ -103,9 +106,10 @@ export class SearchPluginManager implements PluginManager {
       // Update statistics
       this.updateStatistics()
 
-      console.log(`插件 ${plugin.name} (${pluginId}) 取消注册成功`)
+      logger.info(`插件 ${plugin.name} (${pluginId}) 取消注册成功`)
     } catch (error) {
-      console.error(`取消注册插件 ${pluginId} 失败:`, error)
+      const appError = handlePluginError(`取消注册插件 ${pluginId}`, error)
+      logger.error(`取消注册插件 ${pluginId} 失败`, appError)
       throw error
     }
   }
@@ -152,7 +156,7 @@ export class SearchPluginManager implements PluginManager {
     }
 
     this.emit('plugin:enabled', pluginId)
-    console.log(`插件 ${plugin.name} 已启用`)
+    logger.info(`插件 ${plugin.name} 已启用`)
   }
 
   /**
@@ -176,7 +180,7 @@ export class SearchPluginManager implements PluginManager {
     }
 
     this.emit('plugin:disabled', pluginId)
-    console.log(`插件 ${plugin.name} 已禁用`)
+    logger.info(`插件 ${plugin.name} 已禁用`)
   }
 
   /**
@@ -222,7 +226,8 @@ export class SearchPluginManager implements PluginManager {
             pluginResults = await plugin.search(context)
           }
         } catch (error) {
-          console.error(`插件 ${plugin.name} 搜索失败:`, error)
+          const appError = handlePluginError(`插件 ${plugin.name} 搜索`, error)
+          logger.error(`插件 ${plugin.name} 搜索失败`, appError)
           hasError = true
           pluginResults = []
         } finally {
@@ -255,14 +260,15 @@ export class SearchPluginManager implements PluginManager {
       const finalResults = sortedResults.slice(0, maxResults)
 
       const searchTime = Date.now() - startTime
-      console.log(`搜索完成: "${query}" -> ${finalResults.length} 个结果 (${searchTime}ms)`)
+      logger.info(`搜索完成: "${query}" -> ${finalResults.length} 个结果 (${searchTime}ms)`)
 
       this.emit('search:results', finalResults)
       this.emit('search:end', query, finalResults.length)
 
       return finalResults
     } catch (error) {
-      console.error('搜索过程中发生错误:', error)
+      const appError = handlePluginError('搜索过程', error)
+      logger.error('搜索过程中发生错误', appError)
       this.emit('search:end', query, 0)
       return []
     }
@@ -361,7 +367,8 @@ export class SearchPluginManager implements PluginManager {
       try {
         listener(...args)
       } catch (error) {
-        console.error(`事件监听器执行失败 (${event}):`, error)
+        const appError = handlePluginError(`事件监听器执行 (${event})`, error)
+        logger.error(`事件监听器执行失败 (${event})`, appError)
       }
     }
   }
@@ -381,7 +388,7 @@ export class SearchPluginManager implements PluginManager {
    */
   setPluginConfig(pluginId: string, config: Record<string, any>): void {
     if (!this.stateStore) {
-      console.warn('State store not available, configuration not persisted')
+      logger.warn('State store not available, configuration not persisted')
       return
     }
 
@@ -397,7 +404,8 @@ export class SearchPluginManager implements PluginManager {
       try {
         (plugin as any).configure(config)
       } catch (error) {
-        console.error(`配置插件 ${pluginId} 失败:`, error)
+        const appError = handlePluginError(`配置插件 ${pluginId}`, error)
+        logger.error(`配置插件 ${pluginId} 失败`, appError)
       }
     }
 
@@ -409,7 +417,7 @@ export class SearchPluginManager implements PluginManager {
    */
   updatePluginConfig(pluginId: string, updates: Record<string, any>): void {
     if (!this.stateStore) {
-      console.warn('State store not available, configuration not persisted')
+      logger.warn('State store not available, configuration not persisted')
       return
     }
 
@@ -423,7 +431,8 @@ export class SearchPluginManager implements PluginManager {
       try {
         (plugin as any).configure(newConfig)
       } catch (error) {
-        console.error(`配置插件 ${pluginId} 失败:`, error)
+        const appError = handlePluginError(`应用配置到插件 ${pluginId}`, error)
+        logger.error(`配置插件 ${pluginId} 失败`, appError)
       }
     }
 
@@ -492,7 +501,7 @@ export class SearchPluginManager implements PluginManager {
    */
   resetPluginMetrics(pluginId: string): void {
     if (!this.stateStore) {
-      console.warn('State store not available, metrics not reset')
+      logger.warn('State store not available, metrics not reset')
       return
     }
 
@@ -504,7 +513,7 @@ export class SearchPluginManager implements PluginManager {
    */
   resetAllMetrics(): void {
     if (!this.stateStore) {
-      console.warn('State store not available, metrics not reset')
+      logger.warn('State store not available, metrics not reset')
       return
     }
 
@@ -527,7 +536,7 @@ export class SearchPluginManager implements PluginManager {
    */
   importPluginState(state: any): void {
     if (!this.stateStore) {
-      console.warn('State store not available, state not imported')
+      logger.warn('State store not available, state not imported')
       return
     }
 
@@ -543,7 +552,8 @@ export class SearchPluginManager implements PluginManager {
         try {
           (plugin as any).configure(config)
         } catch (error) {
-          console.error(`应用配置到插件 ${pluginId} 失败:`, error)
+          const appError = handlePluginError(`应用配置到插件 ${pluginId}`, error)
+          logger.error(`应用配置到插件 ${pluginId} 失败`, appError)
         }
       }
     }
@@ -579,7 +589,8 @@ export class SearchPluginManager implements PluginManager {
           (plugin as any).configure(event.newValue)
           this.emit('plugin:configured', event.pluginId, event.newValue)
         } catch (error) {
-          console.error(`应用配置到插件 ${event.pluginId} 失败:`, error)
+          const appError = handlePluginError(`应用配置到插件 ${event.pluginId}`, error)
+          logger.error(`应用配置到插件 ${event.pluginId} 失败`, appError)
         }
       }
     })
@@ -624,7 +635,7 @@ export class SearchPluginManager implements PluginManager {
     // Cleanup state listener
     pluginStateListener.destroy()
 
-    console.log('插件管理器已销毁')
+    logger.info('插件管理器已销毁')
   }
 }
 

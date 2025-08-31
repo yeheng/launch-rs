@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import Home from './views/Home.vue';
 import SettingWindow from './views/SettingWindow.vue';
 import PluginManagementPage from './views/PluginManagementPage.vue';
+import { logger } from './lib/logger';
 
 const routes = [
   { 
@@ -63,12 +64,12 @@ router.beforeEach((to, _from, next) => {
 // After navigation
 router.afterEach((to, from) => {
   // Log navigation for debugging
-  console.log(`Navigated from ${from.path} to ${to.path}`);
+  logger.info(`Navigated from ${from.path} to ${to.path}`);
   
   // Handle any post-navigation logic
   if (to.name === 'PluginManagement') {
     // Ensure plugin management page is properly initialized
-    console.log('Entering plugin management page');
+    logger.info('Entering plugin management page');
   }
 });
 
