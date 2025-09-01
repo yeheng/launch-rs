@@ -393,6 +393,12 @@ export class PluginStateListener {
   private handleStateChange(event: Event): void {
     const customEvent = event as CustomEvent<PluginStateChangeEvent>
     const stateChangeEvent = customEvent.detail
+    
+    // 确保listeners已初始化且事件详情存在
+    if (!this.listeners || !stateChangeEvent) {
+      return
+    }
+    
     const eventListeners = this.listeners.get(stateChangeEvent.type)
     
     if (eventListeners) {

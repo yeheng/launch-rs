@@ -13,13 +13,22 @@ static REGISTERED_SHORTCUTS: LazyLock<Mutex<HashMap<String, Shortcut>>> = LazyLo
 });
 
 // 文件搜索结果
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct FileSearchResult {
     pub name: String,
     pub path: String,
     pub is_dir: bool,
     pub size: u64,
     pub modified: u64, // 时间戳
+}
+
+// 搜索选项
+#[derive(Debug, Deserialize, Default)]
+pub struct SearchOptions {
+    pub max_results: Option<usize>,
+    pub search_path: Option<String>,
+    pub case_sensitive: Option<bool>,
+    pub include_hidden: Option<bool>,
 }
 
 #[tauri::command]
@@ -360,4 +369,358 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::{self, File};
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    /// 测试工具函数：创建临时测试目录
+    fn create_test_directory() -> TempDir {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        
+        // 创建测试文件
+        let test_files = vec![
+            ("test.txt", "test content"),
+            ("document.pdf", "pdf content"),
+            ("image.png", "png content"),
+            ("script.js", "javascript content"),
+            ("README.md", "readme content"),
+        ];
+        
+        for (filename, content) in test_files {
+            let file_path = temp_dir.path().join(filename);
+            let mut file = File::create(file_path).expect("Failed to create test file");
+            file.write_all(content.as_bytes()).expect("Failed to write test file");
+        }
+        
+        // 创建子目录
+        let sub_dir = temp_dir.path().join("subdir");
+        fs::create_dir(&sub_dir).expect("Failed to create subdirectory");
+        
+        let sub_file_path = sub_dir.join("nested.txt");
+        let mut sub_file = File::create(sub_file_path).expect("Failed to create nested file");
+        sub_file.write_all("nested content".as_bytes()).expect("Failed to write nested file");
+        
+        temp_dir
+    }
+
+    #[test]
+    fn test_greet() {
+        assert_eq!(greet("世界"), "Hello, 世界! You've been greeted from Rust!");
+        assert_eq!(greet(""), "Hello, ! You've been greeted from Rust!");
+        assert_eq!(greet("Test User"), "Hello, Test User! You've been greeted from Rust!");
+    }
+
+    #[test]
+    fn test_sanitize_search_query() {
+        // 正常查询
+        assert_eq!(sanitize_search_query("test"), "test");
+        assert_eq!(sanitize_search_query("test file"), "test file");
+        
+        // 特殊字符过滤
+        assert_eq!(sanitize_search_query("test<>file"), "testfile");
+        assert_eq!(sanitize_search_query("test|file"), "testfile");
+        assert_eq!(sanitize_search_query("test;file"), "testfile");
+        
+        // 中文支持
+        assert_eq!(sanitize_search_query("测试文件"), "测试文件");
+        assert_eq!(sanitize_search_query("test 中文 file"), "test 中文 file");
+        
+        // 允许的符号
+        assert_eq!(sanitize_search_query("test_file-v1.0.txt"), "test_file-v1.0.txt");
+        assert_eq!(sanitize_search_query("config[prod]"), "config[prod]");
+        
+        // 恶意输入过滤
+        assert_eq!(sanitize_search_query("../../../etc/passwd"), "etcpasswd");
+        assert_eq!(sanitize_search_query("rm -rf /"), "rm -rf ");
+    }
+
+    #[test]
+    fn test_calculate_relevance_score() {
+        let query = "test";
+        
+        // 完全匹配
+        assert!(calculate_relevance_score("test", query) > 90.0);
+        
+        // 前缀匹配
+        let prefix_score = calculate_relevance_score("testfile", query);
+        assert!(prefix_score > 70.0 && prefix_score < 90.0);
+        
+        // 包含匹配
+        let contains_score = calculate_relevance_score("mytestfile", query);
+        assert!(contains_score > 50.0 && contains_score < 80.0);
+        
+        // 不匹配
+        assert!(calculate_relevance_score("document", query) < 30.0);
+        
+        // 空字符串
+        assert_eq!(calculate_relevance_score("", query), 0.0);
+    }
+
+    #[test]
+    fn test_search_files_basic() {
+        let temp_dir = create_test_directory();
+        let search_path = temp_dir.path().to_str().unwrap().to_string();
+        
+        // 测试基本搜索
+        let results = search_files("test".to_string(), Some(search_path.clone()), Some(10))
+            .expect("Search should succeed");
+        
+        assert!(!results.is_empty());
+        assert!(results.iter().any(|r| r.name.contains("test")));
+    }
+
+    #[test]
+    fn test_search_files_empty_query() {
+        let temp_dir = create_test_directory();
+        let search_path = temp_dir.path().to_str().unwrap().to_string();
+        
+        // 空查询应该返回空结果
+        let results = search_files("".to_string(), Some(search_path), Some(10))
+            .expect("Empty query should succeed");
+        
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_search_files_invalid_path() {
+        // 无效路径应该返回错误
+        let result = search_files("test".to_string(), Some("/nonexistent/path".to_string()), Some(10));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_search_files_max_results_limit() {
+        let temp_dir = create_test_directory();
+        let search_path = temp_dir.path().to_str().unwrap().to_string();
+        
+        // 测试结果数量限制
+        let results = search_files("".to_string(), Some(search_path), Some(3))
+            .expect("Search should succeed");
+        
+        // 由于空查询，结果应该为空
+        assert!(results.is_empty());
+        
+        // 测试有效查询的限制
+        let results = search_files("t".to_string(), Some(temp_dir.path().to_str().unwrap().to_string()), Some(2))
+            .expect("Search should succeed");
+        
+        assert!(results.len() <= 2);
+    }
+
+    #[test]
+    fn test_search_files_with_subdirectories() {
+        let temp_dir = create_test_directory();
+        let search_path = temp_dir.path().to_str().unwrap().to_string();
+        
+        // 搜索应该包含子目录中的文件
+        let results = search_files("nested".to_string(), Some(search_path), Some(10))
+            .expect("Search should succeed");
+        
+        assert!(results.iter().any(|r| r.name.contains("nested")));
+    }
+
+    #[test]
+    fn test_file_search_result_serialization() {
+        let result = FileSearchResult {
+            name: "test.txt".to_string(),
+            path: "/path/to/test.txt".to_string(),
+            is_dir: false,
+            size: 1024,
+            modified: 1234567890,
+        };
+        
+        // 测试序列化
+        let json = serde_json::to_string(&result).expect("Serialization should succeed");
+        assert!(json.contains("test.txt"));
+        
+        // 测试反序列化
+        let deserialized: FileSearchResult = serde_json::from_str(&json)
+            .expect("Deserialization should succeed");
+        assert_eq!(result, deserialized);
+    }
+
+    #[test]
+    fn test_search_options_default() {
+        let options = SearchOptions::default();
+        assert!(options.max_results.is_none());
+        assert!(options.search_path.is_none());
+        assert!(options.case_sensitive.is_none());
+        assert!(options.include_hidden.is_none());
+    }
+
+    #[test]
+    fn test_validate_and_normalize_search_path_edge_cases() {
+        // 测试None路径
+        let result = validate_and_normalize_search_path(None);
+        assert!(result.is_ok());
+        
+        // 测试空字符串路径
+        let result = validate_and_normalize_search_path(Some("".to_string()));
+        assert!(result.is_ok());
+        
+        // 测试恶意路径
+        let malicious_paths = vec![
+            "../../../etc/passwd",
+            "/etc/shadow",
+            "~/.ssh/id_rsa",
+            "/System/Library/CoreServices/",
+        ];
+        
+        for path in malicious_paths {
+            let result = validate_and_normalize_search_path(Some(path.to_string()));
+            // 根据实现，可能成功（因为路径验证）或失败
+            // 这里我们验证它不会导致panic
+            let _ = result;
+        }
+    }
+
+    #[test]
+    fn test_get_allowed_search_paths() {
+        let paths = get_allowed_search_paths().expect("Should get allowed paths");
+        
+        // 至少应该有一些标准目录
+        assert!(!paths.is_empty());
+        
+        // 验证路径存在且为目录
+        for path in &paths {
+            if path.exists() {
+                assert!(path.is_dir(), "Path should be a directory: {:?}", path);
+            }
+        }
+    }
+
+    #[test]
+    fn test_search_directory_depth_limit() {
+        let temp_dir = create_test_directory();
+        let mut results = Vec::new();
+        
+        // 测试深度限制
+        let search_result = search_directory(
+            temp_dir.path(),
+            "test",
+            &mut results,
+            100,
+            0,
+            0 // 最大深度为0，只搜索当前目录
+        );
+        
+        assert!(search_result.is_ok());
+        
+        // 应该只包含当前目录的文件，不包含子目录文件
+        assert!(!results.iter().any(|r| r.path.contains("subdir")));
+    }
+
+    #[test]
+    fn test_search_directory_max_results_limit() {
+        let temp_dir = create_test_directory();
+        let mut results = Vec::new();
+        
+        // 测试结果数量限制
+        let search_result = search_directory(
+            temp_dir.path(),
+            "",
+            &mut results,
+            2, // 最多2个结果
+            0,
+            3
+        );
+        
+        assert!(search_result.is_ok());
+        assert!(results.len() <= 2);
+    }
+
+    #[test]
+    fn test_file_search_error_handling() {
+        // 测试不存在的目录
+        let mut results = Vec::new();
+        let search_result = search_directory(
+            Path::new("/nonexistent/directory"),
+            "test",
+            &mut results,
+            10,
+            0,
+            3
+        );
+        
+        assert!(search_result.is_err());
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_sanitize_search_query_unicode() {
+        // Unicode字符测试
+        assert_eq!(sanitize_search_query("café"), "café");
+        assert_eq!(sanitize_search_query("🚀 rocket"), " rocket"); // emoji被过滤
+        assert_eq!(sanitize_search_query("naïve résumé"), "naïve résumé");
+        
+        // 混合语言测试
+        assert_eq!(sanitize_search_query("hello 世界 world"), "hello 世界 world");
+    }
+
+    #[test]
+    fn test_search_files_case_sensitivity() {
+        let temp_dir = create_test_directory();
+        let search_path = temp_dir.path().to_str().unwrap().to_string();
+        
+        // 测试大小写不敏感搜索（默认行为）
+        let results_lower = search_files("test".to_string(), Some(search_path.clone()), Some(10))
+            .expect("Search should succeed");
+        let results_upper = search_files("TEST".to_string(), Some(search_path), Some(10))
+            .expect("Search should succeed");
+        
+        // 应该返回相同的结果（因为内部转换为小写）
+        assert_eq!(results_lower.len(), results_upper.len());
+    }
+
+    #[test]
+    fn test_search_files_edge_cases() {
+        let temp_dir = create_test_directory();
+        let search_path = temp_dir.path().to_str().unwrap().to_string();
+        
+        // 测试各种边界情况
+        let edge_cases = vec![
+            (" ", "whitespace only"),
+            (".", "dot only"),  
+            ("...", "multiple dots"),
+            ("中文测试", "chinese characters"),
+        ];
+        
+        for (query, description) in edge_cases {
+            let result = search_files(query.to_string(), Some(search_path.clone()), Some(10));
+            assert!(result.is_ok(), "Failed for case: {}", description);
+        }
+        
+        // 测试超长查询
+        let long_query = "a".repeat(1000);
+        let result = search_files(long_query, Some(search_path.clone()), Some(10));
+        assert!(result.is_ok(), "Failed for very long query");
+    }
+
+    #[test]
+    fn test_concurrent_search_safety() {
+        use std::thread;
+        use std::sync::Arc;
+        
+        let temp_dir = create_test_directory();
+        let search_path = Arc::new(temp_dir.path().to_str().unwrap().to_string());
+        
+        // 并发搜索测试
+        let handles: Vec<_> = (0..10).map(|i| {
+            let path = Arc::clone(&search_path);
+            thread::spawn(move || {
+                search_files(format!("test{}", i), Some((*path).clone()), Some(5))
+            })
+        }).collect();
+        
+        // 等待所有线程完成
+        for handle in handles {
+            let result = handle.join().expect("Thread should complete");
+            assert!(result.is_ok(), "Concurrent search should succeed");
+        }
+    }
 }

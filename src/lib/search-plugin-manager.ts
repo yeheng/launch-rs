@@ -131,6 +131,13 @@ export class SearchPluginManager implements PluginManager {
   }
 
   /**
+   * 获取所有插件（别名方法）
+   */
+  getAllPlugins(): SearchPlugin[] {
+    return this.getPlugins()
+  }
+
+  /**
    * 获取启用的插件
    */
   getEnabledPlugins(): SearchPlugin[] {
@@ -807,3 +814,10 @@ export class SearchPluginManager implements PluginManager {
 
 // 全局插件管理器实例
 export const pluginManager = new SearchPluginManager()
+
+/**
+ * Vue 3 组合式 API 钩子函数，用于获取插件管理器实例
+ */
+export function useSearchPluginManager() {
+  return pluginManager
+}

@@ -1,0 +1,220 @@
+name: 测试和质量检查
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  NODE_ENV: test
+
+jobs:
+  # 前端测试作业
+  frontend-tests:
+    name: 前端测试
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置 Bun 环境
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+        
+    - name: 安装依赖
+      run: bun install
+      
+    - name: TypeScript 类型检查
+      run: bunx vue-tsc --noEmit
+      
+    - name: 运行单元测试
+      run: bun run test:run
+      
+    - name: 生成测试覆盖率
+      run: bun run test:coverage
+      
+    - name: 上传覆盖率报告
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: frontend
+        
+  # 后端测试作业
+  backend-tests:
+    name: Rust 后端测试
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置 Rust 环境
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: clippy
+        override: true
+        
+    - name: Rust 代码格式检查
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --check --manifest-path src-tauri/Cargo.toml
+        
+    - name: Rust Clippy 检查
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: --manifest-path src-tauri/Cargo.toml -- -D warnings
+        
+    - name: 运行 Rust 测试
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --manifest-path src-tauri/Cargo.toml --verbose
+        
+    - name: 安装 Tarpaulin (覆盖率工具)
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-tarpaulin
+        
+    - name: 生成 Rust 覆盖率
+      uses: actions-rs/cargo@v1
+      with:
+        command: tarpaulin
+        args: --manifest-path src-tauri/Cargo.toml --out xml --output-dir coverage
+        
+    - name: 上传 Rust 覆盖率
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/cobertura.xml
+        flags: backend
+
+  # E2E 测试作业
+  e2e-tests:
+    name: E2E 测试
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests]
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置 Bun 环境
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+        
+    - name: 安装依赖
+      run: bun install
+      
+    - name: 运行 E2E 测试
+      run: bun run test:e2e
+      
+    - name: 上传 E2E 测试报告
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: test-results/
+        retention-days: 7
+
+  # 集成构建测试
+  build-test:
+    name: 构建测试
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests]
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置 Bun 环境
+      uses: oven-sh/setup-bun@v1
+      
+    - name: 设置 Rust 环境
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        
+    - name: 安装系统依赖
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev librsvg2-dev
+        
+    - name: 安装依赖
+      run: bun install
+      
+    - name: 构建应用
+      run: bun run build
+      
+    - name: 验证构建产物
+      run: |
+        test -d dist
+        test -f dist/index.html
+        
+  # 质量门控
+  quality-gate:
+    name: 质量门控
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests, e2e-tests, build-test]
+    if: always()
+    
+    steps:
+    - name: 检查所有作业状态
+      run: |
+        echo "前端测试: ${{ needs.frontend-tests.result }}"
+        echo "后端测试: ${{ needs.backend-tests.result }}"
+        echo "E2E测试: ${{ needs.e2e-tests.result }}"
+        echo "构建测试: ${{ needs.build-test.result }}"
+        
+        if [[ "${{ needs.frontend-tests.result }}" != "success" ]] || \
+           [[ "${{ needs.backend-tests.result }}" != "success" ]] || \
+           [[ "${{ needs.e2e-tests.result }}" != "success" ]] || \
+           [[ "${{ needs.build-test.result }}" != "success" ]]; then
+          echo "❌ 质量门控失败：存在测试失败"
+          exit 1
+        fi
+        
+        echo "✅ 质量门控通过：所有测试成功"
+
+  # 性能基准测试（可选）
+  performance-benchmark:
+    name: 性能基准测试
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置环境
+      uses: oven-sh/setup-bun@v1
+      
+    - name: 安装依赖
+      run: bun install
+      
+    - name: 运行性能基准测试
+      run: |
+        echo "🔍 运行性能基准测试..."
+        bun run build
+        
+        # 分析构建大小
+        echo "📦 构建产物大小:"
+        du -sh dist/
+        
+        # 分析关键文件大小
+        echo "📄 关键文件大小:"
+        ls -lh dist/assets/ | head -10
+        
+    - name: 保存性能报告
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-report
+        path: performance-report.txt
+        retention-days: 30
