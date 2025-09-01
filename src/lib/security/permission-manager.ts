@@ -48,6 +48,29 @@ export class PermissionManager {
           
           this.permissionStates.set(cacheKey, confirmed)
           return confirmed
+        } else if (result.state === 'denied') {
+          // 权限被拒绝，询问用户是否要重试
+          const confirmed = await this.showPermissionDialog(
+            '剪贴板访问',
+            '剪贴板权限被拒绝，是否要重试？',
+            context
+          )
+          
+          if (confirmed) {
+            // 用户同意重试，尝试写入
+            try {
+              const testText = 'permission_test'
+              await navigator.clipboard.writeText(testText)
+              this.permissionStates.set(cacheKey, true)
+              return true
+            } catch (error) {
+              this.permissionStates.set(cacheKey, false)
+              return false
+            }
+          } else {
+            this.permissionStates.set(cacheKey, false)
+            return false
+          }
         }
       }
       
@@ -84,8 +107,8 @@ export class PermissionManager {
       const dangerousPatterns = [
         /\.\./,  // 路径遍历
         /^\/\//, // 网络路径
-        /^[a-zA-Z]:\\\\/, // Windows网络路径
-        /[<>:"|?*]/ // 非法字符
+        /^[a-zA-Z]:\\\\\\\\/, // Windows网络路径
+        /[<>"|?*]/ // 非法字符（排除冒号，因为Windows路径需要冒号）
       ]
       
       if (dangerousPatterns.some(pattern => pattern.test(path))) {
@@ -138,6 +161,18 @@ export class PermissionManager {
       }
     }
     
+    // 对于搜索路径，如果是相对路径且不包含危险模式，则允许
+    if (isRelativePath) {
+      const dangerousPatterns = [
+        /\.\./,  // 路径遍历
+        /^\/\//, // 网络路径
+        /^[a-zA-Z]:\\\\\\\\/, // Windows网络路径
+        /[<>"|?*]/ // 非法字符
+      ]
+      
+      return !dangerousPatterns.some(pattern => pattern.test(cleanPath))
+    }
+    
     return this.checkFileSystemAccess(cleanPath)
   }
   
@@ -177,6 +212,10 @@ export class PermissionManager {
       tempDir || '',
       '/tmp', // Unix临时目录
       '/var/tmp', // Unix临时目录
+      '/home', // Unix用户目录
+      '/Users', // macOS用户目录
+      'C:\\Users', // Windows用户目录
+      'C:\\Temp', // Windows临时目录
     ].filter(Boolean)
   }
   

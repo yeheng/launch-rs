@@ -29,8 +29,9 @@ function sanitizeExpression(expression: string): string | null {
   // 移除所有空格
   let cleanExpr = expression.replace(/\s+/g, '')
   
-  // 验证字符安全性
-  const allowedChars = /^[\d+\-*/().^√πe,]+$/
+  // 验证字符安全性 - 允许数学函数和运算符
+  // 更宽松的正则表达式，允许负号出现在数字前面
+  const allowedChars = /^[\d+\-*/().^√πe,sqrtinlcotafebrgdu]+$/
   if (!allowedChars.test(cleanExpr)) {
     return null
   }
@@ -38,8 +39,14 @@ function sanitizeExpression(expression: string): string | null {
   // 替换常量
   cleanExpr = cleanExpr
     .replace(/π/g, Math.PI.toString())
-    .replace(/e/g, Math.E.toString())
-    .replace(/√/g, 'sqrt') // 将√替换为sqrt函数调用
+    // 只替换独立的 e，不是函数名的一部分
+    .replace(/\be\b/g, Math.E.toString())
+  
+  // 处理 sqrt 函数调用
+  // 将 sqrt(16) 和 sqrt16 格式统一处理
+  cleanExpr = cleanExpr.replace(/sqrt(\d+)/g, 'sqrt($1)') // sqrt16 -> sqrt(16)
+  cleanExpr = cleanExpr.replace(/√(\d+)/g, 'sqrt($1)')     // √16 -> sqrt(16)
+  cleanExpr = cleanExpr.replace(/√/g, 'sqrt')           // √(16) -> sqrt(16)
   
   return cleanExpr
 }
@@ -91,9 +98,148 @@ function tokenizeExpression(expression: string): string[] | null {
       // 解析sqrt函数
       tokens.push('sqrt')
       i += 4
-    } else if ('+-*/()^'.includes(char)) {
-      // 运算符和括号
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === 's' && expression.startsWith('sin', i)) {
+      // 解析sin函数
+      tokens.push('sin')
+      i += 3
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === 'c' && expression.startsWith('cos', i)) {
+      // 解析cos函数
+      tokens.push('cos')
+      i += 3
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === 't' && expression.startsWith('tan', i)) {
+      // 解析tan函数
+      tokens.push('tan')
+      i += 3
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === 'l' && expression.startsWith('log', i)) {
+      // 解析log函数
+      tokens.push('log')
+      i += 3
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === 'l' && expression.startsWith('ln', i)) {
+      // 解析ln函数
+      tokens.push('ln')
+      i += 2
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === 'a' && expression.startsWith('abs', i)) {
+      // 解析abs函数
+      tokens.push('abs')
+      i += 3
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === 'f' && expression.startsWith('floor', i)) {
+      // 解析floor函数
+      tokens.push('floor')
+      i += 5
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === 'c' && expression.startsWith('ceil', i)) {
+      // 解析ceil函数
+      tokens.push('ceil')
+      i += 4
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === 'r' && expression.startsWith('round', i)) {
+      // 解析round函数
+      tokens.push('round')
+      i += 5
+      // 跳过可能的空格
+      while (i < expression.length && expression[i] === ' ') {
+        i++
+      }
+      // 检查是否有左括号
+      if (i < expression.length && expression[i] === '(') {
+        tokens.push('(')
+        i++
+      }
+    } else if (char === ')') {
+      // 右括号
       tokens.push(char)
+      i++
+    } else if ('+-*/(^'.includes(char)) {
+      // 处理一元负号（在函数调用后或左括号后的负号）
+      if (char === '-' && (tokens.length === 0 || tokens[tokens.length - 1] === '(' || ['sin', 'cos', 'tan', 'log', 'ln', 'abs', 'floor', 'ceil', 'round', 'sqrt'].includes(tokens[tokens.length - 1]))) {
+        // 一元负号，用特殊标记
+        tokens.push('neg')
+      } else {
+        // 普通运算符
+        tokens.push(char)
+      }
+      i++
+    } else if (char === ' ') {
+      // 跳过空格
       i++
     } else {
       // 不支持的字符
@@ -109,10 +255,15 @@ function tokenizeExpression(expression: string): string[] | null {
  */
 function getOperatorPrecedence(operator: string): number {
   switch (operator) {
-    case '^': return 4
-    case 'sqrt': return 4
-    case '*': case '/': return 3
-    case '+': case '-': return 2
+    case '^': return 8
+    case 'sqrt': return 8
+    case 'sin': case 'cos': case 'tan': return 7
+    case 'log': case 'ln': return 7
+    case 'abs': return 7
+    case 'floor': case 'ceil': case 'round': return 7
+    case 'neg': return 9 // 一元负号具有最高优先级
+    case '*': case '/': return 6
+    case '+': case '-': return 5
     default: return 0
   }
 }
@@ -124,12 +275,18 @@ function infixToPostfix(tokens: string[]): string[] | null {
   const output: string[] = []
   const operators: string[] = []
   
+  // 数学函数集合
+  const mathFunctions = ['sqrt', 'sin', 'cos', 'tan', 'log', 'ln', 'abs', 'floor', 'ceil', 'round']
+  
   for (const token of tokens) {
     if (!isNaN(parseFloat(token))) {
       // 数字直接输出
       output.push(token)
-    } else if (token === 'sqrt') {
-      // sqrt函数
+    } else if (mathFunctions.includes(token)) {
+      // 数学函数
+      operators.push(token)
+    } else if (token === 'neg') {
+      // 一元负号压栈，像其他运算符一样
       operators.push(token)
     } else if (token === '(') {
       // 左括号压栈
@@ -144,8 +301,8 @@ function infixToPostfix(tokens: string[]): string[] | null {
       }
       operators.pop() // 弹出左括号
       
-      // 如果栈顶是sqrt，也弹出
-      if (operators.length > 0 && operators[operators.length - 1] === 'sqrt') {
+      // 如果栈顶是数学函数，也弹出
+      if (operators.length > 0 && mathFunctions.includes(operators[operators.length - 1])) {
         output.push(operators.pop()!)
       }
     } else {
@@ -186,6 +343,58 @@ function evaluatePostfix(postfix: string[]): number | null {
       const operand = stack.pop()!
       if (operand < 0) return null // 负数不能开平方
       stack.push(Math.sqrt(operand))
+    } else if (token === 'sin') {
+      // sin函数
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      stack.push(Math.sin(operand))
+    } else if (token === 'cos') {
+      // cos函数
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      stack.push(Math.cos(operand))
+    } else if (token === 'tan') {
+      // tan函数
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      stack.push(Math.tan(operand))
+    } else if (token === 'log') {
+      // log函数 (以10为底)
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      if (operand <= 0) return null // 对数函数的定义域大于0
+      stack.push(Math.log10(operand))
+    } else if (token === 'ln') {
+      // ln函数 (自然对数)
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      if (operand <= 0) return null // 对数函数的定义域大于0
+      stack.push(Math.log(operand))
+    } else if (token === 'abs') {
+      // abs函数
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      stack.push(Math.abs(operand))
+    } else if (token === 'floor') {
+      // floor函数
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      stack.push(Math.floor(operand))
+    } else if (token === 'ceil') {
+      // ceil函数
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      stack.push(Math.ceil(operand))
+    } else if (token === 'round') {
+      // round函数
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      stack.push(Math.round(operand))
+    } else if (token === 'neg') {
+      // 一元负号
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      stack.push(-operand)
     } else {
       // 二元运算符
       if (stack.length < 2) return null

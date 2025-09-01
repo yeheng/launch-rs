@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { InputValidator, validateAndSanitizeSearchQuery, validateFilePath, validatePluginId, validateMathExpression, validateUrl, sanitizeInput } from '@/lib/security/input-validator'
+import { InputValidator, validateAndSanitizeSearchQuery, validateFilePath, validatePluginId, validateMathExpression, validateUrl, sanitizeInput } from '@/lib/security/enhanced-input-validator-v2'
 import { permissionManager } from '@/lib/security/permission-manager'
 import { evaluateMathExpression, evaluateAdvancedMathExpression } from '@/lib/security/math-evaluator'
 
@@ -593,6 +593,7 @@ describe('安全漏洞测试套件', () => {
       const startTime = performance.now()
       const result = InputValidator.validateSearchQuery(veryLongInput)
       const endTime = performance.now()
+      const duration = endTime - startTime
       
       expect(duration).toBeLessThan(10) // 应该在10ms内完成
       expect(result.sanitized.length).toBe(500) // 应该被截断

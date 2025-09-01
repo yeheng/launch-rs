@@ -19,9 +19,23 @@ export interface ValidationResult {
 export function validateAndSanitizeSearchQuery(query: string): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
-    sanitized: query.trim(),
+    sanitized: '',
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (query === null || query === undefined) {
+    result.isValid = false
+    result.errors.push('搜索查询不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof query !== 'string') {
+    result.isValid = false
+    result.errors.push('搜索查询必须是字符串类型')
+    return result
   }
 
   // 基础检查
@@ -30,6 +44,8 @@ export function validateAndSanitizeSearchQuery(query: string): ValidationResult 
     result.errors.push('搜索查询不能为空')
     return result
   }
+
+  result.sanitized = query.trim()
 
   const trimmed = query.trim()
 
@@ -126,9 +142,23 @@ export function validateAndSanitizeSearchQuery(query: string): ValidationResult 
 export function validateFilePath(path: string): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
-    sanitized: path.trim(),
+    sanitized: '',
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (path === null || path === undefined) {
+    result.isValid = false
+    result.errors.push('文件路径不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof path !== 'string') {
+    result.isValid = false
+    result.errors.push('文件路径必须是字符串类型')
+    return result
   }
 
   if (!path || path.trim().length === 0) {
@@ -136,6 +166,8 @@ export function validateFilePath(path: string): ValidationResult {
     result.errors.push('文件路径不能为空')
     return result
   }
+
+  result.sanitized = path.trim()
 
   const trimmed = path.trim()
 
@@ -186,9 +218,23 @@ export function validateFilePath(path: string): ValidationResult {
 export function validatePluginId(pluginId: string): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
-    sanitized: pluginId.trim(),
+    sanitized: '',
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (pluginId === null || pluginId === undefined) {
+    result.isValid = false
+    result.errors.push('插件ID不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof pluginId !== 'string') {
+    result.isValid = false
+    result.errors.push('插件ID必须是字符串类型')
+    return result
   }
 
   if (!pluginId || pluginId.trim().length === 0) {
@@ -196,6 +242,8 @@ export function validatePluginId(pluginId: string): ValidationResult {
     result.errors.push('插件ID不能为空')
     return result
   }
+
+  result.sanitized = pluginId.trim()
 
   const trimmed = pluginId.trim()
 
@@ -235,6 +283,20 @@ export function validateMathExpression(expression: string): ValidationResult {
     sanitized: expression.trim(),
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (expression === null || expression === undefined) {
+    result.isValid = false
+    result.errors.push('数学表达式不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof expression !== 'string') {
+    result.isValid = false
+    result.errors.push('数学表达式必须是字符串类型')
+    return result
   }
 
   if (!expression || expression.trim().length === 0) {
@@ -319,6 +381,16 @@ export function sanitizeInput(input: string, options: {
   trim?: boolean
   allowControlChars?: boolean
 } = {}): string {
+  // 处理null或undefined输入
+  if (input === null || input === undefined) {
+    return ''
+  }
+
+  // 处理非字符串输入
+  if (typeof input !== 'string') {
+    return ''
+  }
+
   let sanitized = input
 
   // 基础清理
@@ -364,9 +436,23 @@ export function sanitizeInput(input: string, options: {
 export function validateUrl(url: string): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
-    sanitized: url.trim(),
+    sanitized: '',
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (url === null || url === undefined) {
+    result.isValid = false
+    result.errors.push('URL不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof url !== 'string') {
+    result.isValid = false
+    result.errors.push('URL必须是字符串类型')
+    return result
   }
 
   if (!url || url.trim().length === 0) {
@@ -374,6 +460,8 @@ export function validateUrl(url: string): ValidationResult {
     result.errors.push('URL不能为空')
     return result
   }
+
+  result.sanitized = url.trim()
 
   const trimmed = url.trim()
 
@@ -394,8 +482,8 @@ export function validateUrl(url: string): ValidationResult {
   }
 
   // 增强的协议检查
-  const allowedProtocols = ['http:', 'https:', 'ftp:', 'ftps:', 'mailto:', 'tel:', 'data:']
-  const blockedProtocols = ['javascript:', 'vbscript:', 'data:text/html', 'file:', 'about:', 'chrome:', 'moz-extension:']
+  const allowedProtocols = ['http:', 'https:', 'mailto:', 'tel:']
+  const blockedProtocols = ['javascript:', 'vbscript:', 'data:', 'ftp:', 'ftps:', 'file:', 'about:', 'chrome:', 'moz-extension:']
   
   const urlObj = new URL(result.sanitized)
   
