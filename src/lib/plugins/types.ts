@@ -368,6 +368,24 @@ export interface PluginCatalogItem {
 }
 
 /**
+ * Plugin usage metrics
+ */
+export interface PluginUsageMetrics {
+  /** Total search count */
+  searchCount: number
+  /** Total results returned */
+  resultsCount: number
+  /** Average search time in milliseconds */
+  avgSearchTime: number
+  /** Last used timestamp */
+  lastUsed: number
+  /** Error count */
+  errorCount: number
+  /** Success rate percentage */
+  successRate: number
+}
+
+/**
  * Plugin statistics
  */
 export interface PluginStatistics {
@@ -514,10 +532,10 @@ export class PluginValidator {
       const appError = handlePluginError('插件结构验证', error)
       logger.error('插件结构验证失败', appError)
       errors.push({
-        type: 'validation_error',
+        code: 'STRUCTURE_VALIDATION_ERROR',
         message: '插件结构验证过程中发生错误',
         severity: 'critical',
-        suggestion: '请检查插件路径和权限'
+        location: 'plugin-structure-validator'
       })
     }
     

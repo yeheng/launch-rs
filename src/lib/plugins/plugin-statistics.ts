@@ -1,5 +1,5 @@
-import type { PluginStatistics, PluginCategory } from './types'
-import { usePluginStateStore } from './plugin-state-manager'
+import type { PluginStatistics, PluginCategory, PluginUsageMetrics } from './types'
+import { useUnifiedStateStore } from '../state/unified-state-manager'
 import { logger } from '../logger'
 import { handlePluginError } from '../error-handler'
 
@@ -7,11 +7,11 @@ import { handlePluginError } from '../error-handler'
  * Plugin statistics utilities
  */
 export class PluginStatisticsManager {
-  private stateStore: ReturnType<typeof usePluginStateStore> | null = null
+  private stateStore: ReturnType<typeof useUnifiedStateStore> | null = null
 
   constructor() {
     try {
-      this.stateStore = usePluginStateStore()
+      this.stateStore = useUnifiedStateStore()
     } catch (error) {
       const appError = handlePluginError('State store not available for statistics', error)
       logger.warn('State store not available for statistics:', appError)
@@ -32,7 +32,7 @@ export class PluginStatisticsManager {
       }
     }
 
-    return this.stateStore.statistics
+    return this.stateStore.plugins.statistics
   }
 
   /**
@@ -48,7 +48,7 @@ export class PluginStatisticsManager {
       return { healthy: 0, withWarnings: 0, withErrors: 0, total: 0 }
     }
 
-    const allMetrics = Object.values(this.stateStore.usageMetrics)
+    const allMetrics = Object.values(this.stateStore.plugins.usageMetrics)
     const total = allMetrics.length
     
     let healthy = 0
@@ -56,9 +56,10 @@ export class PluginStatisticsManager {
     let withErrors = 0
 
     for (const metrics of allMetrics) {
-      if (metrics.errorCount === 0 && metrics.successRate >= 95) {
+      const typedMetrics = metrics as PluginUsageMetrics
+      if (typedMetrics.errorCount === 0 && typedMetrics.successRate >= 95) {
         healthy++
-      } else if (metrics.successRate >= 80) {
+      } else if (typedMetrics.successRate >= 80) {
         withWarnings++
       } else {
         withErrors++
@@ -88,7 +89,7 @@ export class PluginStatisticsManager {
       }
     }
 
-    const allMetrics = Object.entries(this.stateStore.usageMetrics)
+    const allMetrics = Object.entries(this.stateStore.plugins.usageMetrics)
     
     if (allMetrics.length === 0) {
       return {
@@ -100,13 +101,16 @@ export class PluginStatisticsManager {
       }
     }
 
-    const totalSearches = allMetrics.reduce((sum, [, metrics]) => sum + metrics.searchCount, 0)
-    const totalResults = allMetrics.reduce((sum, [, metrics]) => sum + metrics.resultsCount, 0)
-    const totalSearchTime = allMetrics.reduce((sum, [, metrics]) => sum + (metrics.avgSearchTime * metrics.searchCount), 0)
+    const totalSearches = allMetrics.reduce((sum, [, metrics]) => sum + (metrics as PluginUsageMetrics).searchCount, 0)
+    const totalResults = allMetrics.reduce((sum, [, metrics]) => sum + (metrics as PluginUsageMetrics).resultsCount, 0)
+    const totalSearchTime = allMetrics.reduce((sum, [, metrics]) => {
+      const typedMetrics = metrics as PluginUsageMetrics
+      return sum + (typedMetrics.avgSearchTime * typedMetrics.searchCount)
+    }, 0)
     const avgSearchTime = totalSearches > 0 ? Math.round(totalSearchTime / totalSearches) : 0
 
     // Find most and least active plugins
-    const sortedByActivity = allMetrics.sort((a, b) => b[1].searchCount - a[1].searchCount)
+    const sortedByActivity = allMetrics.sort((a, b) => (b[1] as PluginUsageMetrics).searchCount - (a[1] as PluginUsageMetrics).searchCount)
     const mostActivePlugin = sortedByActivity[0]?.[0] || null
     const leastActivePlugin = sortedByActivity[sortedByActivity.length - 1]?.[0] || null
 
@@ -131,12 +135,12 @@ export class PluginStatisticsManager {
       return []
     }
 
-    const { byCategory, total } = this.stateStore.statistics
+    const { byCategory, total } = this.stateStore.plugins.statistics
     
     return Object.entries(byCategory).map(([category, count]) => ({
       category: category as PluginCategory,
-      count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0
+      count: count as number,
+      percentage: total > 0 ? Math.round((count as number / total) * 100) : 0
     }))
   }
 
@@ -158,8 +162,8 @@ export class PluginStatisticsManager {
       }
     }
 
-    const allMetrics = Object.entries(this.stateStore.usageMetrics)
-      .filter(([, metrics]) => metrics.searchCount > 0) // Only consider plugins that have been used
+    const allMetrics = Object.entries(this.stateStore.plugins.usageMetrics)
+      .filter(([, metrics]) => (metrics as PluginUsageMetrics).searchCount > 0) // Only consider plugins that have been used
 
     if (allMetrics.length === 0) {
       return {
@@ -171,25 +175,25 @@ export class PluginStatisticsManager {
     }
 
     // Find fastest and slowest plugins
-    const sortedBySpeed = allMetrics.sort((a, b) => a[1].avgSearchTime - b[1].avgSearchTime)
+    const sortedBySpeed = allMetrics.sort((a, b) => (a[1] as PluginUsageMetrics).avgSearchTime - (b[1] as PluginUsageMetrics).avgSearchTime)
     const fastestPlugin = sortedBySpeed[0] ? {
       id: sortedBySpeed[0][0],
-      avgTime: sortedBySpeed[0][1].avgSearchTime
+      avgTime: (sortedBySpeed[0][1] as PluginUsageMetrics).avgSearchTime
     } : null
     const slowestPlugin = sortedBySpeed[sortedBySpeed.length - 1] ? {
       id: sortedBySpeed[sortedBySpeed.length - 1][0],
-      avgTime: sortedBySpeed[sortedBySpeed.length - 1][1].avgSearchTime
+      avgTime: (sortedBySpeed[sortedBySpeed.length - 1][1] as PluginUsageMetrics).avgSearchTime
     } : null
 
     // Find most and least reliable plugins
-    const sortedByReliability = allMetrics.sort((a, b) => b[1].successRate - a[1].successRate)
+    const sortedByReliability = allMetrics.sort((a, b) => (b[1] as PluginUsageMetrics).successRate - (a[1] as PluginUsageMetrics).successRate)
     const mostReliablePlugin = sortedByReliability[0] ? {
       id: sortedByReliability[0][0],
-      successRate: sortedByReliability[0][1].successRate
+      successRate: (sortedByReliability[0][1] as PluginUsageMetrics).successRate
     } : null
     const leastReliablePlugin = sortedByReliability[sortedByReliability.length - 1] ? {
       id: sortedByReliability[sortedByReliability.length - 1][0],
-      successRate: sortedByReliability[sortedByReliability.length - 1][1].successRate
+      successRate: (sortedByReliability[sortedByReliability.length - 1][1] as PluginUsageMetrics).successRate
     } : null
 
     return {
@@ -249,14 +253,15 @@ export class PluginStatisticsManager {
       priority: 'low' | 'medium' | 'high'
     }> = []
 
-    const allMetrics = Object.entries(this.stateStore.usageMetrics)
-    const enabledStates = this.stateStore.enabledStates
+    const allMetrics = Object.entries(this.stateStore.plugins.usageMetrics)
+    const enabledStates = this.stateStore.plugins.enabledStates
 
     for (const [pluginId, metrics] of allMetrics) {
       const isEnabled = enabledStates[pluginId] ?? true
+      const typedMetrics = metrics as PluginUsageMetrics
 
       // Recommend disabling unused plugins
-      if (isEnabled && metrics.searchCount === 0 && metrics.lastUsed === 0) {
+      if (isEnabled && typedMetrics.searchCount === 0 && typedMetrics.lastUsed === 0) {
         recommendations.push({
           type: 'disable',
           pluginId,
@@ -266,17 +271,17 @@ export class PluginStatisticsManager {
       }
 
       // Recommend disabling plugins with high error rates
-      if (isEnabled && metrics.successRate < 50 && metrics.searchCount > 10) {
+      if (isEnabled && typedMetrics.successRate < 50 && typedMetrics.searchCount > 10) {
         recommendations.push({
           type: 'disable',
           pluginId,
-          reason: `Plugin has low success rate (${metrics.successRate.toFixed(1)}%)`,
+          reason: `Plugin has low success rate (${typedMetrics.successRate.toFixed(1)}%)`,
           priority: 'high'
         })
       }
 
       // Recommend enabling frequently used but disabled plugins
-      if (!isEnabled && metrics.searchCount > 50) {
+      if (!isEnabled && typedMetrics.searchCount > 50) {
         recommendations.push({
           type: 'enable',
           pluginId,
@@ -286,7 +291,7 @@ export class PluginStatisticsManager {
       }
 
       // Recommend removing plugins with persistent errors
-      if (metrics.errorCount > 100 && metrics.successRate < 10) {
+      if (typedMetrics.errorCount > 100 && typedMetrics.successRate < 10) {
         recommendations.push({
           type: 'remove',
           pluginId,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PluginCard from '@/components/PluginCard.vue'
+import type { PluginCategory, PluginInstallationStatus } from '@/lib/plugins/types'
 
 // Mock plugin data
 const mockPlugin = {
@@ -14,7 +15,7 @@ const mockPlugin = {
   search: () => Promise.resolve([]),
   metadata: {
     author: 'Test Author',
-    category: 'utilities',
+    category: 'utilities' as PluginCategory,
     installDate: new Date(),
     lastUpdated: new Date(),
     fileSize: 1024,
@@ -26,8 +27,8 @@ const mockPlugin = {
     isInstalled: true,
     isBuiltIn: false,
     canUninstall: true,
-    status: 'installed',
-    installMethod: 'manual'
+    status: 'installed' as PluginInstallationStatus,
+    installMethod: 'manual' as const
   },
   permissions: [],
   settings: {

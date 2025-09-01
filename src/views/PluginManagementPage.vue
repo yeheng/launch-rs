@@ -622,7 +622,6 @@ import { ToastContainer, useToast } from '@/components/ui/toast'
 import { VirtualScrollList } from '@/components/ui/virtual-scroll'
 import { useNavigation } from '@/lib/composables/useNavigation'
 import { usePluginLazyLoading } from '@/lib/plugins/lazy-loader'
-import { pluginCache } from '@/lib/plugins/performance-cache'
 import { MetricType, performanceMonitor } from '@/lib/plugins/performance-monitor'
 import { withPluginErrorHandling } from '@/lib/plugins/plugin-error-handler'
 import { logger } from '@/lib/logger'
@@ -843,9 +842,7 @@ const loadPlugins = async () => {
     // Update statistics
     statistics.value = await pluginManagementService.getPluginStatistics()
     
-    // Record cache performance
-    const cacheStats = pluginCache.getStatistics()
-    performanceMonitor.recordCachePerformance(cacheStats.hitRate, cacheStats.totalHits + cacheStats.totalMisses)
+    // Cache functionality removed - performance-cache.ts was deleted
     
     // Record memory usage after loading
     performanceMonitor.recordMemoryUsage('after-plugin-load')

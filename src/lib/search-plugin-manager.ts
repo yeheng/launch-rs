@@ -5,10 +5,13 @@ import type {
   SearchPlugin,
   SearchResultItem
 } from './search-plugins'
-import { usePluginStateStore, pluginStateListener, type PluginStateChangeEvent } from './plugins/plugin-state-manager'
+import { useUnifiedStateStore, unifiedStateListener } from './state/unified-state-manager'
 import type { EnhancedSearchPlugin, PluginCategory } from './plugins/types'
 import { logger } from './logger'
 import { handlePluginError } from './error-handler'
+import { InputValidator } from './security/input-validator'
+import { searchCache, withSearchCache } from './cache/search-cache'
+import { intelligentCache } from './cache/intelligent-cache'
 
 /**
  * 搜索插件管理器实现
@@ -17,7 +20,7 @@ export class SearchPluginManager implements PluginManager {
   private plugins = new Map<string, SearchPlugin>()
   private listeners = new Map<keyof PluginManagerEvents, Function[]>()
   private isInitialized = false
-  private stateStore: ReturnType<typeof usePluginStateStore> | null = null
+  private stateStore: ReturnType<typeof useUnifiedStateStore> | null = null
 
   constructor() {
     this.initialize()
@@ -30,7 +33,7 @@ export class SearchPluginManager implements PluginManager {
 
     // Initialize state store
     try {
-      this.stateStore = usePluginStateStore()
+      this.stateStore = useUnifiedStateStore()
     } catch (error) {
       logger.warn('State store not available, running without persistence:', error)
     }
@@ -52,8 +55,7 @@ export class SearchPluginManager implements PluginManager {
     try {
       // Initialize plugin state in store
       if (this.stateStore) {
-        const enhancedPlugin = plugin as EnhancedSearchPlugin
-        this.stateStore.initializePlugin(enhancedPlugin)
+        this.stateStore.initializePlugin(plugin.id)
 
         // Apply persisted enabled state
         plugin.enabled = this.stateStore.isPluginEnabled(plugin.id)
@@ -184,25 +186,57 @@ export class SearchPluginManager implements PluginManager {
   }
 
   /**
-   * 执行搜索
+   * 执行搜索（带缓存支持）
    */
   async search(query: string, maxResults = 50): Promise<SearchResultItem[]> {
-    if (!query.trim()) {
+    // 输入验证和清理
+    const validationResult = InputValidator.validateSearchQuery(query)
+    if (!validationResult.isValid) {
+      logger.warn('搜索查询验证失败', { 
+        query, 
+        errors: validationResult.errors 
+      })
       return []
     }
 
-    this.emit('search:start', query)
+    // 记录验证警告
+    if (validationResult.warnings.length > 0) {
+      logger.info('搜索查询验证警告', { 
+        query, 
+        warnings: validationResult.warnings 
+      })
+    }
+
+    const sanitizedQuery = validationResult.sanitized
+    if (!sanitizedQuery.trim()) {
+      return []
+    }
+
+    // 尝试从缓存获取
+    const cachedResults = await searchCache.get('global-search', sanitizedQuery, { maxResults })
+    if (cachedResults) {
+      this.emit('search:results', cachedResults)
+      this.emit('search:end', sanitizedQuery, cachedResults.length)
+      
+      // 记录缓存命中到智能缓存系统
+      intelligentCache.recordSearch('global-search', sanitizedQuery, cachedResults, 1)
+      
+      logger.debug(`搜索缓存命中: "${sanitizedQuery}" -> ${cachedResults.length} 个结果`)
+      return cachedResults
+    }
+
+    this.emit('search:start', sanitizedQuery)
     const startTime = Date.now()
 
     try {
-      const context = this.createSearchContext(query, maxResults)
+      const context = this.createSearchContext(sanitizedQuery, maxResults)
       const enabledPlugins = this.getEnabledPlugins()
       const allResults: SearchResultItem[] = []
 
       // 检查是否有插件前缀
-      const hasPrefix = this.checkSearchPrefix(query)
+      const hasPrefix = this.checkSearchPrefix(sanitizedQuery)
 
-      // 并行执行所有启用插件的搜索
+      // 并行执行所有启用插件的搜索（每个插件都有独立的缓存）
       const searchPromises = enabledPlugins.map(async (plugin) => {
         const pluginStartTime = Date.now()
         let pluginResults: SearchResultItem[] = []
@@ -212,18 +246,28 @@ export class SearchPluginManager implements PluginManager {
           // 如果有前缀，只搜索支持该前缀的插件
           if (hasPrefix && plugin.searchPrefixes) {
             const matchedPrefix = plugin.searchPrefixes.find(prefix =>
-              query.toLowerCase().startsWith(prefix.toLowerCase())
+              sanitizedQuery.toLowerCase().startsWith(prefix.toLowerCase())
             )
             if (!matchedPrefix) {
               return []
             }
             // 移除前缀后搜索
-            const queryWithoutPrefix = query.slice(matchedPrefix.length).trim()
+            const queryWithoutPrefix = sanitizedQuery.slice(matchedPrefix.length).trim()
             const prefixContext = this.createSearchContext(queryWithoutPrefix, maxResults)
-            pluginResults = await plugin.search(prefixContext)
+            
+            // 使用带缓存的搜索
+            const cachedSearch = withSearchCache(
+              plugin.id,
+              (context: SearchContext) => plugin.search(context)
+            )
+            pluginResults = await cachedSearch({ ...prefixContext, query: queryWithoutPrefix, maxResults })
           } else {
-            // 正常搜索
-            pluginResults = await plugin.search(context)
+            // 正常搜索（带缓存）
+            const cachedSearch = withSearchCache(
+              plugin.id,
+              (context: SearchContext) => plugin.search(context)
+            )
+            pluginResults = await cachedSearch({ ...context, query: sanitizedQuery, maxResults })
           }
         } catch (error) {
           const appError = handlePluginError(`插件 ${plugin.name} 搜索`, error)
@@ -241,6 +285,9 @@ export class SearchPluginManager implements PluginManager {
               hasError
             )
           }
+          
+          // 记录到智能缓存系统
+          intelligentCache.recordSearch(plugin.id, sanitizedQuery, pluginResults, pluginSearchTime)
         }
 
         return pluginResults
@@ -260,10 +307,17 @@ export class SearchPluginManager implements PluginManager {
       const finalResults = sortedResults.slice(0, maxResults)
 
       const searchTime = Date.now() - startTime
-      logger.info(`搜索完成: "${query}" -> ${finalResults.length} 个结果 (${searchTime}ms)`)
+      
+      // 缓存综合搜索结果
+      await searchCache.set('global-search', sanitizedQuery, finalResults, searchTime, { maxResults })
+      
+      // 记录综合搜索到智能缓存
+      intelligentCache.recordSearch('global-search', sanitizedQuery, finalResults, searchTime)
+
+      logger.info(`搜索完成: "${sanitizedQuery}" -> ${finalResults.length} 个结果 (${searchTime}ms)`)
 
       this.emit('search:results', finalResults)
-      this.emit('search:end', query, finalResults.length)
+      this.emit('search:end', sanitizedQuery, finalResults.length)
 
       return finalResults
     } catch (error) {
@@ -566,31 +620,31 @@ export class SearchPluginManager implements PluginManager {
    */
   private setupStateChangeListeners(): void {
     // Listen for state changes from other instances
-    pluginStateListener.on('enabled', (event) => {
-      const plugin = this.plugins.get(event.pluginId)
-      if (plugin && plugin.enabled !== event.newValue) {
-        plugin.enabled = event.newValue as boolean
-        this.emit(event.newValue ? 'plugin:enabled' : 'plugin:disabled', event.pluginId)
+    unifiedStateListener.on('plugins', 'nested-update', (event) => {
+      const path = event.path as string
+      if (path.startsWith('plugins.enabledStates.')) {
+        const pluginId = path.replace('plugins.enabledStates.', '')
+        const plugin = this.plugins.get(pluginId)
+        if (plugin && plugin.enabled !== event.newValue) {
+          plugin.enabled = event.newValue as boolean
+          this.emit(event.newValue ? 'plugin:enabled' : 'plugin:disabled', pluginId)
+        }
       }
     })
 
-    pluginStateListener.on('disabled', (event) => {
-      const plugin = this.plugins.get(event.pluginId)
-      if (plugin && plugin.enabled !== event.newValue) {
-        plugin.enabled = event.newValue as boolean
-        this.emit('plugin:disabled', event.pluginId)
-      }
-    })
-
-    pluginStateListener.on('configured', (event) => {
-      const plugin = this.plugins.get(event.pluginId)
-      if (plugin && 'configure' in plugin && typeof plugin.configure === 'function') {
-        try {
-          (plugin as any).configure(event.newValue)
-          this.emit('plugin:configured', event.pluginId, event.newValue)
-        } catch (error) {
-          const appError = handlePluginError(`应用配置到插件 ${event.pluginId}`, error)
-          logger.error(`应用配置到插件 ${event.pluginId} 失败`, appError)
+    unifiedStateListener.on('plugins', 'nested-update', (event) => {
+      const path = event.path as string
+      if (path.startsWith('plugins.configurations.')) {
+        const pluginId = path.replace('plugins.configurations.', '')
+        const plugin = this.plugins.get(pluginId)
+        if (plugin && 'configure' in plugin && typeof plugin.configure === 'function') {
+          try {
+            (plugin as any).configure(event.newValue)
+            this.emit('plugin:configured', pluginId, event.newValue)
+          } catch (error) {
+            const appError = handlePluginError(`应用配置到插件 ${pluginId}`, error)
+            logger.error(`应用配置到插件 ${pluginId} 失败`, appError)
+          }
         }
       }
     })
@@ -633,9 +687,121 @@ export class SearchPluginManager implements PluginManager {
     this.listeners.clear()
 
     // Cleanup state listener
-    pluginStateListener.destroy()
+    unifiedStateListener.destroy()
+
+    // 清理缓存
+    searchCache.destroy()
+    intelligentCache.destroy()
 
     logger.info('插件管理器已销毁')
+  }
+
+  /**
+   * 获取缓存统计信息
+   */
+  getCacheStatistics() {
+    return {
+      searchCache: searchCache.getStatistics(),
+      intelligentCache: intelligentCache.getLearningReport()
+    }
+  }
+
+  /**
+   * 清除搜索缓存
+   */
+  clearSearchCache(): void {
+    searchCache.clear()
+    logger.info('搜索缓存已清除')
+  }
+
+  /**
+   * 清除特定插件的缓存
+   */
+  clearPluginCache(pluginId: string): void {
+    searchCache.invalidatePlugin(pluginId)
+    logger.info(`插件 ${pluginId} 的缓存已清除`)
+  }
+
+  /**
+   * 预热插件缓存
+   */
+  async warmupPluginCache(pluginId: string, queries: string[]): Promise<void> {
+    const plugin = this.plugins.get(pluginId)
+    if (!plugin) {
+      logger.warn(`插件 ${pluginId} 不存在，无法预热缓存`)
+      return
+    }
+
+    try {
+      await searchCache.warmup(pluginId, queries, async (query) => {
+        const context = this.createSearchContext(query)
+        return await plugin.search(context)
+      })
+
+      logger.info(`插件 ${pluginId} 缓存预热完成`, { queryCount: queries.length })
+    } catch (error) {
+      const appError = handlePluginError(`预热插件 ${pluginId} 缓存`, error)
+      logger.error(`预热插件 ${pluginId} 缓存失败`, appError)
+    }
+  }
+
+  /**
+   * 智能预热缓存
+   */
+  async intelligentWarmup(pluginId?: string): Promise<void> {
+    try {
+      if (pluginId) {
+        // 预热特定插件
+        const plugin = this.plugins.get(pluginId)
+        if (!plugin) {
+          logger.warn(`插件 ${pluginId} 不存在，无法智能预热`)
+          return
+        }
+
+        await intelligentCache.intelligentWarmup(pluginId, async (query) => {
+          const context = this.createSearchContext(query)
+          return await plugin.search(context)
+        })
+
+        logger.info(`插件 ${pluginId} 智能预热完成`)
+      } else {
+        // 预热所有启用的插件
+        const enabledPlugins = this.getEnabledPlugins()
+        for (const plugin of enabledPlugins) {
+          await intelligentCache.intelligentWarmup(plugin.id, async (query) => {
+            const context = this.createSearchContext(query)
+            return await plugin.search(context)
+          })
+        }
+
+        logger.info('所有插件智能预热完成', { pluginCount: enabledPlugins.length })
+      }
+    } catch (error) {
+      const appError = handlePluginError('智能预热缓存', error)
+      logger.error('智能预热缓存失败', appError)
+    }
+  }
+
+  /**
+   * 获取缓存策略建议
+   */
+  async getCacheStrategy(pluginId: string, query: string, results: SearchResultItem[]) {
+    return await intelligentCache.getCacheStrategy(pluginId, query, results)
+  }
+
+  /**
+   * 预测热门查询
+   */
+  async predictHotQueries(pluginId?: string) {
+    return await intelligentCache.predictHotQueries(pluginId)
+  }
+
+  /**
+   * 清除学习数据
+   */
+  clearLearningData(): void {
+    intelligentCache.clearLearningData()
+    logger.info('智能缓存学习数据已清除')
   }
 }
 

@@ -1,7 +1,10 @@
-import { Calculator } from 'lucide-vue-next'
+import { useIcon, ICON_MAP } from '@/lib/utils/icon-manager'
 import type { SearchContext, SearchPlugin, SearchResultItem } from '../../search-plugins'
 import { logger } from '../../logger'
 import { handlePluginError } from '../../error-handler'
+import { permissionManager } from '../../security/permission-manager'
+import { InputValidator } from '../../security/input-validator'
+import { evaluateAdvancedMathExpression } from '../../security/math-evaluator'
 
 /**
  * 计算器搜索插件
@@ -10,7 +13,7 @@ export class CalculatorPlugin implements SearchPlugin {
   id = 'calculator'
   name = '计算器'
   description = '计算数学表达式'
-  icon = Calculator
+  icon: any = null // 将在初始化时动态加载
   version = '1.0.0'
   enabled = true
   priority = 90
@@ -40,19 +43,48 @@ export class CalculatorPlugin implements SearchPlugin {
   }
 
   async initialize(): Promise<void> {
-    logger.info('计算器插件初始化完成')
+    const { getIcon } = useIcon()
+    try {
+      // 动态加载计算器图标
+      this.icon = await getIcon(ICON_MAP.Calculator)
+      logger.info('计算器插件初始化完成')
+    } catch (error) {
+      logger.warn('计算器图标加载失败，使用默认图标', error)
+      // 图标加载失败不影响插件功能
+    }
   }
 
   async search(context: SearchContext): Promise<SearchResultItem[]> {
     const { query } = context
     
+    // 输入验证
+    const validationResult = InputValidator.validateMathExpression(query)
+    if (!validationResult.isValid) {
+      logger.warn('数学表达式验证失败', { 
+        query, 
+        errors: validationResult.errors 
+      })
+      return []
+    }
+
+    // 使用清理后的表达式
+    const sanitizedQuery = validationResult.sanitized
+    
+    // 记录验证警告
+    if (validationResult.warnings.length > 0) {
+      logger.info('数学表达式验证警告', { 
+        query, 
+        warnings: validationResult.warnings 
+      })
+    }
+    
     // 检查是否是数学表达式
-    if (!this.isMathExpression(query)) {
+    if (!this.isMathExpression(sanitizedQuery)) {
       return []
     }
 
     try {
-      const result = this.evaluateExpression(query)
+      const result = this.evaluateExpression(sanitizedQuery)
       
       if (result === null) {
         return []
@@ -62,7 +94,7 @@ export class CalculatorPlugin implements SearchPlugin {
         id: `calc-${query}`,
         title: this.formatResult(result),
         description: `计算: ${query}`,
-        icon: Calculator,
+        icon: this.icon,
         priority: this.priority + 50, // 数学表达式优先级很高
         action: () => this.copyResult(result),
         source: this.id,
@@ -96,47 +128,50 @@ export class CalculatorPlugin implements SearchPlugin {
 
   private evaluateExpression(expression: string): number | null {
     try {
+      // 使用安全的表达式求值器
+      if (this.settings.values.enableAdvanced) {
+        // 启用高级函数模式
+        return evaluateAdvancedMathExpression(expression, this.settings.values.precision)
+      } else {
+        // 基础模式（只支持基本运算）
+        return this.evaluateBasicExpression(expression)
+      }
+    } catch (error) {
+      logger.warn('表达式求值失败', { expression, error })
+      return null
+    }
+  }
+
+  /**
+   * 基础表达式求值（只支持基本运算）
+   */
+  private evaluateBasicExpression(expression: string): number | null {
+    try {
       // 清理表达式
       let cleanExpr = expression
         .replace(/\s+/g, '') // 移除空格
-        .replace(/π/g, 'Math.PI') // 替换π
-        .replace(/e/g, 'Math.E') // 替换e
-        .replace(/√/g, 'Math.sqrt') // 替换√
-        .replace(/\^/g, '**') // 替换^为**
-      
-      // 如果启用了高级函数，替换函数名
-      if (this.settings.values.enableAdvanced) {
-        cleanExpr = cleanExpr
-          .replace(/\bsin\(/gi, 'Math.sin(')
-          .replace(/\bcos\(/gi, 'Math.cos(')
-          .replace(/\btan\(/gi, 'Math.tan(')
-          .replace(/\blog\(/gi, 'Math.log10(')
-          .replace(/\bln\(/gi, 'Math.log(')
-          .replace(/\bsqrt\(/gi, 'Math.sqrt(')
-          .replace(/\babs\(/gi, 'Math.abs(')
-          .replace(/\bfloor\(/gi, 'Math.floor(')
-          .replace(/\bceil\(/gi, 'Math.ceil(')
-          .replace(/\bround\(/gi, 'Math.round(')
-      }
+        .replace(/π/g, Math.PI.toString()) // 替换π
+        .replace(/e/g, Math.E.toString()) // 替换e
+        .replace(/√/g, 'sqrt') // 替换√为sqrt
+        .replace(/\^/g, '**') // 替换^为**（用于后续处理）
 
-      // 安全性检查：只允许特定的字符和函数
-      const safePattern = /^[\d+\-*/.()\sMath]+$/
+      // 基础安全性检查：只允许基本数学字符
+      const safePattern = /^[\d+\-*/().^√πe,]+$/
       if (!safePattern.test(cleanExpr)) {
         return null
       }
 
-      // 使用Function构造函数安全地计算表达式
-      const result = new Function(`return ${cleanExpr}`)() as number
+      // 使用基础求值器
+      const result = evaluateAdvancedMathExpression(cleanExpr, this.settings.values.precision)
       
       // 检查结果是否有效
-      if (typeof result !== 'number' || !isFinite(result)) {
+      if (result === null || !isFinite(result)) {
         return null
       }
 
-      // 应用精度设置
-      const precision = this.settings.values.precision
-      return Number(result.toFixed(precision))
+      return result
     } catch (error) {
+      logger.warn('基础表达式求值失败', { expression, error })
       return null
     }
   }
@@ -158,6 +193,13 @@ export class CalculatorPlugin implements SearchPlugin {
 
   private async copyResult(result: number): Promise<void> {
     try {
+      // 请求剪贴板访问权限
+      const hasPermission = await permissionManager.requestClipboardAccess('calculator-plugin')
+      if (!hasPermission) {
+        logger.warn('用户拒绝了剪贴板访问权限')
+        return
+      }
+      
       const formatted = this.formatResult(result)
       await navigator.clipboard.writeText(formatted)
       logger.info(`计算结果 ${formatted} 已复制到剪贴板`)
@@ -175,7 +217,7 @@ export class UnitConverterPlugin implements SearchPlugin {
   id = 'units'
   name = '单位转换'
   description = '转换长度、重量、温度等单位'
-  icon = Calculator
+  icon: any = null // 将在初始化时动态加载
   version = '1.0.0'
   enabled = true
   priority = 85
@@ -210,7 +252,15 @@ export class UnitConverterPlugin implements SearchPlugin {
   }
 
   async initialize(): Promise<void> {
-    logger.info('单位转换插件初始化完成')
+    const { getIcon } = useIcon()
+    try {
+      // 动态加载计算器图标（单位转换也使用计算器图标）
+      this.icon = await getIcon(ICON_MAP.Calculator)
+      logger.info('单位转换插件初始化完成')
+    } catch (error) {
+      logger.warn('单位转换图标加载失败，使用默认图标', error)
+      // 图标加载失败不影响插件功能
+    }
   }
 
   async search(context: SearchContext): Promise<SearchResultItem[]> {
@@ -227,7 +277,7 @@ export class UnitConverterPlugin implements SearchPlugin {
       id: `unit-${query}-${index}`,
       title: result.formatted,
       description: `${conversion.value} ${conversion.fromUnit} = ${result.formatted}`,
-      icon: Calculator,
+      icon: this.icon,
       priority: this.priority + (10 - index), // 第一个结果优先级最高
       action: () => this.copyResult(result.formatted),
       source: this.id,
@@ -305,6 +355,13 @@ export class UnitConverterPlugin implements SearchPlugin {
 
   private async copyResult(result: string): Promise<void> {
     try {
+      // 请求剪贴板访问权限
+      const hasPermission = await permissionManager.requestClipboardAccess('unit-converter-plugin')
+      if (!hasPermission) {
+        logger.warn('用户拒绝了剪贴板访问权限')
+        return
+      }
+      
       await navigator.clipboard.writeText(result)
       logger.info(`转换结果 ${result} 已复制到剪贴板`)
     } catch (error) {

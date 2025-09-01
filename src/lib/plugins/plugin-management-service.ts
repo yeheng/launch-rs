@@ -1,7 +1,6 @@
 import { pluginManager } from '../search-plugin-manager'
 import type { SearchPlugin } from '../search-plugins'
 import { pluginLazyLoader } from './lazy-loader'
-import { CacheKeys, cached, pluginCache } from './performance-cache'
 import { MetricType, monitored, performanceMonitor } from './performance-monitor'
 import { usePluginStateStore } from './plugin-state-manager'
 import { pluginStatisticsManager } from './plugin-statistics'
@@ -189,7 +188,7 @@ export class PluginManagementService {
   static resetInstance(): void {
     if (PluginManagementService.instance) {
       PluginManagementService.instance.stopHealthMonitoring()
-      PluginManagementService.instance = null
+      PluginManagementService.instance = undefined as any
     }
   }
 
@@ -197,7 +196,7 @@ export class PluginManagementService {
    * Clear cache (for testing)
    */
   clearCache(): void {
-    pluginCache.clear()
+    // Cache functionality removed - performance-cache.ts was deleted
     pluginLazyLoader.clear()
   }
 
@@ -297,7 +296,6 @@ export class PluginManagementService {
   /**
    * Get all installed plugins as enhanced plugins
    */
-  @cached(2 * 60 * 1000) // Cache for 2 minutes
   @monitored('get-installed-plugins')
   async getInstalledPlugins(): Promise<EnhancedSearchPlugin[]> {
     try {
@@ -349,15 +347,7 @@ export class PluginManagementService {
   @monitored('search-plugins')
   async searchPlugins(options: PluginSearchOptions = {}): Promise<EnhancedSearchPlugin[]> {
     try {
-      // Check cache first
-      const cacheKey = CacheKeys.pluginSearch(options.query || '', options)
-      const cached = pluginCache.get<EnhancedSearchPlugin[]>(cacheKey)
-      if (cached) {
-        performanceMonitor.recordMetric(MetricType.CACHE_HIT_RATE, 'plugin-search-cache', 1)
-        return cached
-      }
-
-      performanceMonitor.recordMetric(MetricType.CACHE_HIT_RATE, 'plugin-search-cache', 0)
+      // Cache functionality removed - performance-cache.ts was deleted
       
       const searchStartTime = performance.now()
       let plugins = await this.getInstalledPlugins()
@@ -439,8 +429,7 @@ export class PluginManagementService {
       const searchTime = performance.now() - searchStartTime
       performanceMonitor.recordMetric(MetricType.SEARCH_LATENCY, 'plugin-search', searchTime)
 
-      // Cache the results
-      pluginCache.set(cacheKey, plugins, 2 * 60 * 1000) // Cache for 2 minutes
+      // Cache functionality removed - performance-cache.ts was deleted
 
       return plugins
     } catch (error) {
@@ -1225,7 +1214,7 @@ export class PluginManagementService {
   /**
    * Get plugin usage metrics
    */
-  getPluginMetrics(pluginId: string) {
+  getPluginMetrics(_pluginId: string) {
     return pluginStatisticsManager.getUsageTrends()
   }
 

@@ -14,7 +14,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import Toast from './Toast.vue'
 import type { ToastItem, ToastPosition } from './types'
 

@@ -173,10 +173,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Button } from '@/components/ui/button'
 import { performanceMonitor, type PerformanceStats, type PerformanceAlert, MetricType } from '@/lib/plugins/performance-monitor'
-import { pluginCache, type CacheStatistics } from '@/lib/plugins/performance-cache'
 import { usePluginLazyLoading } from '@/lib/plugins/lazy-loader'
 
 // Icons
@@ -197,6 +196,18 @@ const stats = ref<PerformanceStats>({
   cacheStats: { hitRate: 0, missRate: 0, totalRequests: 0 },
   alerts: []
 })
+
+// 简单的缓存统计接口
+interface CacheStatistics {
+  totalEntries: number
+  hitRate: number
+  missRate: number
+  totalHits: number
+  totalMisses: number
+  memoryUsage: number
+  oldestEntry: number
+  newestEntry: number
+}
 
 const cacheStats = ref<CacheStatistics>({
   totalEntries: 0,
@@ -242,8 +253,17 @@ const refreshMetrics = async () => {
     // Get performance statistics
     stats.value = performanceMonitor.getStatistics()
     
-    // Get cache statistics
-    cacheStats.value = pluginCache.getStatistics()
+    // Get cache statistics (简化实现，因为cache功能被移除)
+    cacheStats.value = {
+      totalEntries: 0,
+      hitRate: 0,
+      missRate: 0,
+      totalHits: 0,
+      totalMisses: 0,
+      memoryUsage: 0,
+      oldestEntry: 0,
+      newestEntry: 0
+    }
     
     // Get lazy loading statistics
     lazyStats.value = getLazyStats()
@@ -260,7 +280,7 @@ const refreshMetrics = async () => {
 
 const clearMetrics = () => {
   performanceMonitor.clear()
-  pluginCache.clear()
+  // pluginCache.clear() // cache功能已移除
   refreshMetrics()
 }
 

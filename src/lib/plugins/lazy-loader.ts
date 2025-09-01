@@ -3,9 +3,8 @@
  * Implements progressive loading strategies to improve performance
  */
 
-import type { EnhancedSearchPlugin, PluginCatalogItem } from './types'
-import { pluginCache, CacheKeys } from './performance-cache'
-import { performanceMonitor, MetricType } from './performance-monitor'
+import type { EnhancedSearchPlugin } from './types'
+import { performanceMonitor } from './performance-monitor'
 import { logger } from '../logger'
 import { handlePluginError } from '../error-handler'
 
@@ -86,14 +85,7 @@ export class PluginLazyLoader {
       return this.detailsState.loaded.get(pluginId)!
     }
 
-    // Check cache first
-    if (this.config.enableCache) {
-      const cached = pluginCache.get<EnhancedSearchPlugin>(CacheKeys.pluginDetails(pluginId))
-      if (cached) {
-        this.detailsState.loaded.set(pluginId, cached)
-        return cached
-      }
-    }
+    // Cache functionality removed - performance-cache.ts was deleted
 
     // Check if already loading
     if (this.detailsState.loading.has(pluginId)) {
@@ -114,10 +106,7 @@ export class PluginLazyLoader {
       this.detailsState.loaded.set(pluginId, result)
       this.detailsState.failed.delete(pluginId)
       
-      // Cache the result
-      if (this.config.enableCache) {
-        pluginCache.set(CacheKeys.pluginDetails(pluginId), result, this.config.cacheTtl)
-      }
+      // Cache functionality removed - performance-cache.ts was deleted
 
       return result
     } catch (error) {
@@ -140,15 +129,7 @@ export class PluginLazyLoader {
       return this.metadataState.loaded.get(pluginId)!
     }
 
-    // Check cache first
-    if (this.config.enableCache) {
-      const cacheKey = `metadata:${pluginId}`
-      const cached = pluginCache.get<Partial<EnhancedSearchPlugin>>(cacheKey)
-      if (cached) {
-        this.metadataState.loaded.set(pluginId, cached)
-        return cached
-      }
-    }
+    // Cache functionality removed - performance-cache.ts was deleted
 
     // Check if already loading
     if (this.metadataState.loading.has(pluginId)) {
@@ -169,11 +150,7 @@ export class PluginLazyLoader {
       this.metadataState.loaded.set(pluginId, result)
       this.metadataState.failed.delete(pluginId)
       
-      // Cache the result
-      if (this.config.enableCache) {
-        const cacheKey = `metadata:${pluginId}`
-        pluginCache.set(cacheKey, result, this.config.cacheTtl)
-      }
+      // Cache functionality removed - performance-cache.ts was deleted
 
       return result
     } catch (error) {
@@ -324,7 +301,8 @@ export class PluginLazyLoader {
         description: `Detailed description for plugin ${pluginId}`,
         version: '1.0.0',
         enabled: true,
-        icon: 'PluginIcon',
+        priority: 50,
+        icon: undefined as any,
         search: async () => [],
         metadata: {
           author: 'Plugin Author',
@@ -343,7 +321,10 @@ export class PluginLazyLoader {
           status: 'installed' as any
         },
         permissions: [],
-        settings: []
+        settings: {
+        schema: [],
+        values: {}
+      }
       }
 
       return mockPlugin

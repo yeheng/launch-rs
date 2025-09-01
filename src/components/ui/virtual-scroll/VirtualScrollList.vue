@@ -100,7 +100,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   buffer: 5,
   isLoading: false,
-  getItemKey: (item: T, index: number) => index,
+  getItemKey: (_item: T, index: number) => index,
   ariaLabel: 'Virtual scroll list',
   enableMonitoring: true
 })
@@ -229,7 +229,7 @@ watch(scrollTop, () => {
 })
 
 // Watch for items changes to record performance
-watch(() => props.items.length, (newLength, oldLength) => {
+watch(() => props.items.length, (_newLength, oldLength) => {
   if (props.enableMonitoring && oldLength !== undefined) {
     performanceMonitor.recordMetric(
       MetricType.OPERATION_TIME,

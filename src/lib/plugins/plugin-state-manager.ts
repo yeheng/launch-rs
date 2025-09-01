@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { PersistenceOptions } from 'pinia-plugin-persistedstate'
-import type { EnhancedSearchPlugin, PluginCategory, PluginStatistics } from './types'
+import type { EnhancedSearchPlugin, PluginCategory, PluginStatistics, PluginUsageMetrics } from './types'
 import { logger } from '../logger'
 import { handlePluginError } from '../error-handler'
 
@@ -20,23 +20,6 @@ export interface PluginState {
   lastSync: number
 }
 
-/**
- * Plugin usage metrics
- */
-export interface PluginUsageMetrics {
-  /** Total search count */
-  searchCount: number
-  /** Total results returned */
-  resultsCount: number
-  /** Average search time in milliseconds */
-  avgSearchTime: number
-  /** Last used timestamp */
-  lastUsed: number
-  /** Error count */
-  errorCount: number
-  /** Success rate percentage */
-  successRate: number
-}
 
 /**
  * Plugin state change event
@@ -113,7 +96,7 @@ export const usePluginStateStore = defineStore('plugin-state', {
      */
     mostUsedPlugins: (state) => (limit = 5): Array<{ pluginId: string; metrics: PluginUsageMetrics }> => {
       return Object.entries(state.usageMetrics)
-        .map(([pluginId, metrics]) => ({ pluginId, metrics }))
+        .map(([pluginId, metrics]) => ({ pluginId, metrics: metrics as PluginUsageMetrics }))
         .sort((a, b) => b.metrics.searchCount - a.metrics.searchCount)
         .slice(0, limit)
     },
@@ -123,7 +106,10 @@ export const usePluginStateStore = defineStore('plugin-state', {
      */
     pluginsWithIssues: (state): string[] => {
       return Object.entries(state.usageMetrics)
-        .filter(([, metrics]) => metrics.errorCount > 0 || metrics.successRate < 90)
+        .filter(([, metrics]) => {
+          const typedMetrics = metrics as PluginUsageMetrics
+          return typedMetrics.errorCount > 0 || typedMetrics.successRate < 90
+        })
         .map(([pluginId]) => pluginId)
     }
   },
@@ -264,7 +250,10 @@ export const usePluginStateStore = defineStore('plugin-state', {
       const enabledCount = Object.values(this.enabledStates).filter(Boolean).length
       const totalCount = Object.keys(this.enabledStates).length
       const issuesCount = Object.values(this.usageMetrics).filter(
-        metrics => metrics.errorCount > 0 || metrics.successRate < 90
+        metrics => {
+          const typedMetrics = metrics as PluginUsageMetrics
+          return typedMetrics.errorCount > 0 || typedMetrics.successRate < 90
+        }
       ).length
 
       this.statistics = {
@@ -371,7 +360,7 @@ export class PluginStateListener {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      window.addEventListener('plugin-state-change', this.handleStateChange.bind(this))
+      window.addEventListener('plugin-state-change', this.handleStateChange as EventListener)
     }
   }
 
@@ -401,8 +390,9 @@ export class PluginStateListener {
   /**
    * Handle state change event
    */
-  private handleStateChange(event: CustomEvent<PluginStateChangeEvent>): void {
-    const stateChangeEvent = event.detail
+  private handleStateChange(event: Event): void {
+    const customEvent = event as CustomEvent<PluginStateChangeEvent>
+    const stateChangeEvent = customEvent.detail
     const eventListeners = this.listeners.get(stateChangeEvent.type)
     
     if (eventListeners) {
@@ -422,7 +412,7 @@ export class PluginStateListener {
    */
   destroy(): void {
     if (typeof window !== 'undefined') {
-      window.removeEventListener('plugin-state-change', this.handleStateChange.bind(this))
+      window.removeEventListener('plugin-state-change', this.handleStateChange as EventListener)
     }
     this.listeners.clear()
   }

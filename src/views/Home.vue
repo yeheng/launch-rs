@@ -114,6 +114,18 @@
           </div>
         </Button>
         
+        <!-- 缓存管理按钮 -->
+        <CacheManagementDialog v-model:open="showCacheDialog">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            class="footer-button text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+            title="缓存管理"
+          >
+            <Database class="w-4 h-4" />
+          </Button>
+        </CacheManagementDialog>
+        
         <!-- 设置按钮 -->
         <Button 
           variant="ghost" 
@@ -131,9 +143,10 @@
 
 <script setup lang="ts">
 import { Button } from '@/components/ui/button'
-import { pluginManager, registerBuiltinPlugins } from '@/lib/plugins'
+import CacheManagementDialog from '@/components/CacheManagementDialog.vue'
+import { pluginManager } from '@/lib/plugins'
 import type { SearchResultItem } from '@/lib/search-plugins'
-import { SearchIcon, SettingsIcon } from 'lucide-vue-next'
+import { SearchIcon, SettingsIcon, Database } from 'lucide-vue-next'
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -150,6 +163,9 @@ const searchQuery = ref('')
 const selectedIndex = ref(0)
 const searchResults = ref<SearchResultItem[]>([])
 const isSearching = ref(false)
+
+// 缓存管理对话框状态
+const showCacheDialog = ref(false)
 
 // 搜索防抖
 let searchTimer: ReturnType<typeof setTimeout> | null = null
@@ -282,9 +298,6 @@ const onSearchEnd = (query: string, resultCount: number) => {
 // 组件挂载和卸载
 onMounted(async () => {
   try {
-    // 注册内置插件
-    await registerBuiltinPlugins()
-    
     // 监听插件管理器事件
     pluginManager.on('search:start', onSearchStart)
     pluginManager.on('search:results', onSearchResults)
@@ -296,7 +309,6 @@ onMounted(async () => {
       searchInput.value.focus()
     }
     
-    logger.success('搜索插件系统初始化完成')
   } catch (error) {
     const appError = handlePluginError('初始化搜索插件系统', error)
     logger.error('初始化搜索插件系统失败', appError)

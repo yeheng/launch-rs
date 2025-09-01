@@ -1,5 +1,5 @@
 import { ref, reactive } from 'vue'
-import type { ToastItem, ToastOptions, ToastConfig, ToastType } from './types'
+import type { ToastItem, ToastOptions, ToastConfig } from './types'
 
 /**
  * Default toast configuration

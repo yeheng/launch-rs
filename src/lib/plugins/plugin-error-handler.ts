@@ -1,5 +1,4 @@
-import type { SearchPlugin } from '../search-plugins'
-import type { EnhancedSearchPlugin, PluginHealthStatus } from './types'
+import type { PluginHealthStatus } from './types'
 import { PluginHealthLevel, PluginIssueType } from './types'
 import { PluginManagementError, PluginManagementErrorType } from './plugin-management-service'
 import { toast } from '@/components/ui/toast'
@@ -386,7 +385,6 @@ export class PluginErrorHandler {
         `${pluginId} is experiencing issues`,
         {
           title: 'Plugin Fallback Active',
-          description: fallback.fallbackMessage,
           duration: 8000
         }
       )
@@ -402,10 +400,9 @@ export class PluginErrorHandler {
     switch (pluginError.severity) {
       case PluginErrorSeverity.CRITICAL:
         toast.error(
-          `Critical error in ${pluginName}`,
+          `Critical error in ${pluginName}: Plugin has been disabled for security reasons`,
           {
             title: 'Plugin Error',
-            description: 'Plugin has been disabled for security reasons',
             duration: 0, // Don't auto-dismiss critical errors
             action: {
               id: 'view-details',
@@ -417,10 +414,9 @@ export class PluginErrorHandler {
       
       case PluginErrorSeverity.HIGH:
         toast.error(
-          `${pluginName} encountered an error`,
+          `${pluginName} encountered an error: ${pluginError.message}`,
           {
             title: 'Plugin Error',
-            description: pluginError.message,
             duration: 10000,
             action: {
               id: 'retry',
@@ -432,10 +428,9 @@ export class PluginErrorHandler {
       
       case PluginErrorSeverity.MEDIUM:
         toast.warning(
-          `${pluginName} is experiencing issues`,
+          `${pluginName} is experiencing issues: Some features may not work correctly`,
           {
             title: 'Plugin Warning',
-            description: 'Some features may not work correctly',
             duration: 6000
           }
         )
@@ -553,7 +548,7 @@ export class PluginErrorHandler {
       // Convert errors to health issues
       activeErrors.forEach(error => {
         issues.push({
-          type: PluginIssueType.RUNTIME,
+          type: PluginIssueType.PERFORMANCE,
           message: error.message,
           severity: error.severity,
           suggestedFix: this.getSuggestedFix(error)
@@ -616,7 +611,7 @@ export function withPluginErrorHandling<T>(
  * Decorator for plugin methods to add automatic error handling
  */
 export function handlePluginErrors(pluginId: string) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (_target: any, _propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value
     
     descriptor.value = async function (...args: any[]) {

@@ -4,7 +4,7 @@ use tauri_plugin_global_shortcut::{Shortcut, GlobalShortcutExt};
 use std::collections::HashMap;
 use std::sync::{Mutex, LazyLock};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 // 用于存储已注册的快捷键
@@ -109,23 +109,21 @@ fn search_files(
     search_path: Option<String>,
     max_results: Option<usize>,
 ) -> Result<Vec<FileSearchResult>, String> {
-    let search_dir = search_path.unwrap_or_else(|| {
-        // 默认搜索用户主目录
-        dirs::home_dir()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| "/".to_string())
-    });
-    
-    let max = max_results.unwrap_or(50);
-    let query_lower = query.to_lowercase();
-    
-    if query_lower.is_empty() {
+    // 验证搜索查询
+    let sanitized_query = sanitize_search_query(&query);
+    if sanitized_query.is_empty() {
         return Ok(vec![]);
     }
     
+    // 验证和规范化搜索路径
+    let search_dir = validate_and_normalize_search_path(search_path)?;
+    
+    let max = std::cmp::min(max_results.unwrap_or(50), 100); // 限制最大结果数
+    let query_lower = sanitized_query.to_lowercase();
+    
     let mut results = Vec::new();
     
-    // 递归搜索文件
+    // 递归搜索文件，限制深度
     search_directory(&Path::new(&search_dir), &query_lower, &mut results, max, 0, 3)?;
     
     // 按文件名相关性排序
@@ -136,6 +134,113 @@ fn search_files(
     });
     
     Ok(results)
+}
+
+// 验证和规范化搜索路径
+fn validate_and_normalize_search_path(search_path: Option<String>) -> Result<String, String> {
+    let path_str = search_path.unwrap_or_else(|| {
+        // 默认搜索用户主目录
+        dirs::home_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| "/".to_string())
+    });
+    
+    let path = Path::new(&path_str);
+    
+    // 检查路径是否存在
+    if !path.exists() {
+        return Err(format!("搜索路径不存在: {}", path_str));
+    }
+    
+    // 检查路径是否为目录
+    if !path.is_dir() {
+        return Err(format!("搜索路径不是目录: {}", path_str));
+    }
+    
+    // 规范化为绝对路径
+    let absolute_path = path.canonicalize()
+        .map_err(|e| format!("无法规范化路径 {}: {}", path_str, e))?;
+    
+    // 检查路径是否在允许的范围内
+    if !is_path_allowed(&absolute_path)? {
+        return Err(format!("搜索路径不在允许范围内: {}", path_str));
+    }
+    
+    Ok(absolute_path.to_string_lossy().to_string())
+}
+
+// 检查路径是否在允许的范围内
+fn is_path_allowed(path: &Path) -> Result<bool, String> {
+    let allowed_paths = get_allowed_search_paths()?;
+    
+    // 检查路径是否以任何允许的路径开头
+    for allowed_path in allowed_paths {
+        if path.starts_with(&allowed_path) {
+            return Ok(true);
+        }
+    }
+    
+    Ok(false)
+}
+
+// 获取允许的搜索路径
+fn get_allowed_search_paths() -> Result<Vec<PathBuf>, String> {
+    let mut allowed_paths = Vec::new();
+    
+    // 添加用户主目录
+    if let Some(home_dir) = dirs::home_dir() {
+        allowed_paths.push(home_dir);
+    }
+    
+    // 添加文档目录
+    if let Some(doc_dir) = dirs::document_dir() {
+        allowed_paths.push(doc_dir);
+    }
+    
+    // 添加下载目录
+    if let Some(download_dir) = dirs::download_dir() {
+        allowed_paths.push(download_dir);
+    }
+    
+    // 添加桌面目录
+    if let Some(desktop_dir) = dirs::desktop_dir() {
+        allowed_paths.push(desktop_dir);
+    }
+    
+    // 添加用户指定的其他安全目录
+    let additional_safe_dirs = vec![
+        "/tmp",
+        "/var/tmp",
+        "/Users/Shared", // macOS 共享目录
+    ];
+    
+    for dir_str in additional_safe_dirs {
+        let path = Path::new(dir_str);
+        if path.exists() && path.is_dir() {
+            if let Ok(absolute_path) = path.canonicalize() {
+                allowed_paths.push(absolute_path);
+            }
+        }
+    }
+    
+    Ok(allowed_paths)
+}
+
+// 消毒搜索查询
+fn sanitize_search_query(query: &str) -> String {
+    // 移除危险的字符和模式
+    query
+        .chars()
+        .filter(|&c| {
+            // 允许字母、数字、中文、常见符号和空格
+            c.is_alphanumeric() || 
+            c.is_whitespace() || 
+            c == '_' || c == '-' || c == '.' || 
+            c == '(' || c == ')' || c == '[' || c == ']' ||
+            c == '{' || c == '}' || c == '+' || c == '=' ||
+            ('\u{4e00}'..='\u{9fff}').contains(&c) // 中文字符范围
+        })
+        .collect()
 }
 
 // 递归搜索目录

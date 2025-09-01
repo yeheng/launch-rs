@@ -345,9 +345,9 @@ const settingsGroups = computed(() => {
   })
 
   // Sort settings within each group by order
-  groups.values().forEach((group) => {
-    group.settings.sort((a, b) => (a.order || 0) - (b.order || 0))
-  })
+  for (const group of groups.values()) {
+    group.settings.sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+  }
 
   return Array.from(groups.values()).filter(group => group.settings.length > 0)
 })
@@ -368,7 +368,7 @@ const initializeSettings = () => {
   const settings: Record<string, any> = {}
   
   settingsSchema.value.forEach((setting) => {
-    const currentValue = props.plugin.settings.values[setting.key]
+    const currentValue = props.plugin?.settings?.values?.[setting.key]
     settings[setting.key] = currentValue !== undefined ? currentValue : setting.defaultValue
   })
   

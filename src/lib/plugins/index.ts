@@ -100,6 +100,17 @@ export function getCurrentPluginConfig(): PluginConfig {
 // 导出插件管理器实例
 export { pluginManager }
 
+// 导出统一插件加载器
+export { 
+  unifiedPluginLoader, 
+  initializePluginSystem, 
+  getPluginLoadStatus, 
+  getPluginLoadStatistics,
+  type PluginLoaderConfig,
+  type PluginLoadStatus,
+  type PluginLoadResult
+} from './unified-plugin-loader'
+
 // 导出插件管理服务
 export { pluginManagementService } from './plugin-management-service'
 
@@ -108,6 +119,20 @@ export { pluginStateListener, usePluginStateStore } from './plugin-state-manager
 
 // 导出统计管理
 export { pluginStatisticsManager, usePluginStatistics } from './plugin-statistics'
+
+// 导出事件总线
+export { 
+  pluginEventBus, 
+  eventBusUtils,
+  type PluginEvent,
+  type PluginLifecycleEvent,
+  type PluginStateEvent,
+  type PluginSearchEvent,
+  type PluginErrorEvent,
+  type SystemEvent,
+  type EventHandler,
+  type EventBusMiddleware
+} from './plugin-event-bus'
 
 // 导出类型
 export * from './types'

@@ -2,12 +2,23 @@ import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import path from 'node:path';
 import { defineConfig } from 'vite';
+import { iconOptimization } from './src/lib/utils/vite-icon-optimization';
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-  plugins: [vue(), tailwindcss()],
+  plugins: [
+    vue(), 
+    tailwindcss(),
+    iconOptimization({
+      enabled: true,
+      preloadIcons: [
+        'Search', 'Settings', 'File', 'Folder', 'Calculator',
+        'AppWindow', 'MessageSquare', 'Terminal', 'Check', 'X'
+      ]
+    })
+  ],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

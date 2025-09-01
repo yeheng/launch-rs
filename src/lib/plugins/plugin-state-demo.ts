@@ -1,6 +1,5 @@
 import { usePluginStateStore } from './plugin-state-manager'
 import { pluginStatisticsManager } from './plugin-statistics'
-import { pluginManager } from '../search-plugin-manager'
 
 /**
  * Demo script to showcase plugin state management functionality

@@ -1,0 +1,291 @@
+/**
+ * 安全数学表达式求值器
+ * 替代不安全的 new Function() 调用
+ */
+
+/**
+ * 安全的数学表达式求值函数
+ * 只支持基本的数学运算和预定义的函数
+ */
+export function evaluateMathExpression(expression: string): number | null {
+  try {
+    // 清理表达式
+    const cleanExpr = sanitizeExpression(expression)
+    if (!cleanExpr) {
+      return null
+    }
+
+    // 使用栈式求值算法
+    return evaluateWithStack(cleanExpr)
+  } catch (error) {
+    return null
+  }
+}
+
+/**
+ * 表达式清理和验证
+ */
+function sanitizeExpression(expression: string): string | null {
+  // 移除所有空格
+  let cleanExpr = expression.replace(/\s+/g, '')
+  
+  // 验证字符安全性
+  const allowedChars = /^[\d+\-*/().^√πe,]+$/
+  if (!allowedChars.test(cleanExpr)) {
+    return null
+  }
+  
+  // 替换常量
+  cleanExpr = cleanExpr
+    .replace(/π/g, Math.PI.toString())
+    .replace(/e/g, Math.E.toString())
+    .replace(/√/g, 'sqrt') // 将√替换为sqrt函数调用
+  
+  return cleanExpr
+}
+
+/**
+ * 使用栈式算法计算表达式
+ */
+function evaluateWithStack(expression: string): number | null {
+  try {
+    // 将表达式转换为中缀表达式数组
+    const tokens = tokenizeExpression(expression)
+    if (!tokens) {
+      return null
+    }
+
+    // 转换为后缀表达式（逆波兰表示法）
+    const postfix = infixToPostfix(tokens)
+    if (!postfix) {
+      return null
+    }
+
+    // 计算后缀表达式
+    return evaluatePostfix(postfix)
+  } catch (error) {
+    return null
+  }
+}
+
+/**
+ * 将表达式转换为标记数组
+ */
+function tokenizeExpression(expression: string): string[] | null {
+  const tokens: string[] = []
+  let i = 0
+  
+  while (i < expression.length) {
+    const char = expression[i]
+    
+    if (char >= '0' && char <= '9' || char === '.') {
+      // 解析数字
+      let num = ''
+      while (i < expression.length && 
+             (expression[i] >= '0' && expression[i] <= '9' || expression[i] === '.')) {
+        num += expression[i]
+        i++
+      }
+      tokens.push(num)
+    } else if (char === 's' && expression.startsWith('sqrt', i)) {
+      // 解析sqrt函数
+      tokens.push('sqrt')
+      i += 4
+    } else if ('+-*/()^'.includes(char)) {
+      // 运算符和括号
+      tokens.push(char)
+      i++
+    } else {
+      // 不支持的字符
+      return null
+    }
+  }
+  
+  return tokens
+}
+
+/**
+ * 运算符优先级
+ */
+function getOperatorPrecedence(operator: string): number {
+  switch (operator) {
+    case '^': return 4
+    case 'sqrt': return 4
+    case '*': case '/': return 3
+    case '+': case '-': return 2
+    default: return 0
+  }
+}
+
+/**
+ * 中缀表达式转后缀表达式
+ */
+function infixToPostfix(tokens: string[]): string[] | null {
+  const output: string[] = []
+  const operators: string[] = []
+  
+  for (const token of tokens) {
+    if (!isNaN(parseFloat(token))) {
+      // 数字直接输出
+      output.push(token)
+    } else if (token === 'sqrt') {
+      // sqrt函数
+      operators.push(token)
+    } else if (token === '(') {
+      // 左括号压栈
+      operators.push(token)
+    } else if (token === ')') {
+      // 右括号，弹出运算符直到遇到左括号
+      while (operators.length > 0 && operators[operators.length - 1] !== '(') {
+        output.push(operators.pop()!)
+      }
+      if (operators.length === 0) {
+        return null // 括号不匹配
+      }
+      operators.pop() // 弹出左括号
+      
+      // 如果栈顶是sqrt，也弹出
+      if (operators.length > 0 && operators[operators.length - 1] === 'sqrt') {
+        output.push(operators.pop()!)
+      }
+    } else {
+      // 运算符
+      while (operators.length > 0 && 
+             operators[operators.length - 1] !== '(' &&
+             getOperatorPrecedence(operators[operators.length - 1]) >= getOperatorPrecedence(token)) {
+        output.push(operators.pop()!)
+      }
+      operators.push(token)
+    }
+  }
+  
+  // 弹出剩余的运算符
+  while (operators.length > 0) {
+    if (operators[operators.length - 1] === '(') {
+      return null // 括号不匹配
+    }
+    output.push(operators.pop()!)
+  }
+  
+  return output
+}
+
+/**
+ * 计算后缀表达式
+ */
+function evaluatePostfix(postfix: string[]): number | null {
+  const stack: number[] = []
+  
+  for (const token of postfix) {
+    if (!isNaN(parseFloat(token))) {
+      // 数字压栈
+      stack.push(parseFloat(token))
+    } else if (token === 'sqrt') {
+      // sqrt函数
+      if (stack.length < 1) return null
+      const operand = stack.pop()!
+      if (operand < 0) return null // 负数不能开平方
+      stack.push(Math.sqrt(operand))
+    } else {
+      // 二元运算符
+      if (stack.length < 2) return null
+      const b = stack.pop()!
+      const a = stack.pop()!
+      
+      let result: number
+      switch (token) {
+        case '+':
+          result = a + b
+          break
+        case '-':
+          result = a - b
+          break
+        case '*':
+          result = a * b
+          break
+        case '/':
+          if (b === 0) return null // 除零错误
+          result = a / b
+          break
+        case '^':
+          result = Math.pow(a, b)
+          break
+        default:
+          return null // 不支持的运算符
+      }
+      
+      stack.push(result)
+    }
+  }
+  
+  if (stack.length !== 1) {
+    return null // 表达式错误
+  }
+  
+  return stack[0]
+}
+
+/**
+ * 扩展的数学表达式求值器（支持更多函数）
+ */
+export function evaluateAdvancedMathExpression(expression: string, precision: number = 10): number | null {
+  try {
+    // 首先尝试基础求值
+    const basicResult = evaluateMathExpression(expression)
+    if (basicResult !== null) {
+      return Number(basicResult.toFixed(precision))
+    }
+    
+    // 如果基础求值失败，尝试支持更多函数
+    return evaluateWithAdvancedFunctions(expression, precision)
+  } catch (error) {
+    return null
+  }
+}
+
+/**
+ * 支持高级函数的表达式求值
+ */
+function evaluateWithAdvancedFunctions(expression: string, precision: number): number | null {
+  // 支持的函数映射
+  const functionMap: Record<string, (x: number) => number> = {
+    'sin': Math.sin,
+    'cos': Math.cos,
+    'tan': Math.tan,
+    'log': Math.log10,
+    'ln': Math.log,
+    'abs': Math.abs,
+    'floor': Math.floor,
+    'ceil': Math.ceil,
+    'round': Math.round
+  }
+  
+  try {
+    // 检查是否包含高级函数
+    const functionPattern = /\b(sin|cos|tan|log|ln|abs|floor|ceil|round)\s*\(/i
+    if (!functionPattern.test(expression)) {
+      return null
+    }
+    
+    // 替换函数调用
+    let processedExpr = expression
+    
+    // 为每个函数创建安全的替换
+    for (const [funcName, func] of Object.entries(functionMap)) {
+      const regex = new RegExp(`\\b${funcName}\\s*\\(([^)]+)\\)`, 'gi')
+      processedExpr = processedExpr.replace(regex, (match, arg) => {
+        const argResult = evaluateMathExpression(arg.trim())
+        if (argResult === null) return match
+        return func(argResult).toString()
+      })
+    }
+    
+    // 计算最终结果
+    const finalResult = evaluateMathExpression(processedExpr)
+    if (finalResult === null) return null
+    
+    return Number(finalResult.toFixed(precision))
+  } catch (error) {
+    return null
+  }
+}

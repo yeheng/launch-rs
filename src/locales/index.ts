@@ -25,7 +25,7 @@ export function initI18nLanguage() {
     try {
         const userStore = useUserStore();
         if (userStore.preferences.language) {
-            i18n.global.locale.value = userStore.preferences.language;
+            i18n.global.locale.value = userStore.preferences.language as 'zh-CN' | 'en-US';
         }
     } catch (error) {
         const appError = handlePluginError('Failed to load user language preference', error);

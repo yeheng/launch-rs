@@ -1,11 +1,4 @@
-import {
-    AppWindowIcon,
-    FileIcon,
-    FolderIcon,
-    MessageSquareIcon,
-    SettingsIcon,
-    TerminalIcon
-} from 'lucide-vue-next'
+import { useIcon, ICON_MAP } from '@/lib/utils/icon-manager'
 import { useRouter } from 'vue-router'
 import type { SearchContext, SearchPlugin, SearchResultItem } from '../../search-plugins'
 import { logger } from '../../logger'
@@ -18,17 +11,19 @@ export class AppsSearchPlugin implements SearchPlugin {
   id = 'apps'
   name = '应用搜索'
   description = '搜索系统应用和内置功能'
-  icon = AppWindowIcon
+  icon: any = null // 将在初始化时动态加载
   version = '1.0.0'
   enabled = true
   priority = 100
   searchPrefixes = ['app:', 'apps:']
 
   private router: any
+  private iconCache: Map<string, any> = new Map()
   private appData: Array<{
     title: string
     description: string
-    icon: any
+    iconName: string // 改为存储图标名称
+    icon: any // 实际图标对象
     keywords: string[]
     action: () => void
   }> = []
@@ -38,50 +33,89 @@ export class AppsSearchPlugin implements SearchPlugin {
   }
 
   async initialize(): Promise<void> {
+    const { getIcon } = useIcon()
+    
     // 获取路由实例
     const router = useRouter()
     this.router = router
     
-    // 更新应用数据中的路由依赖动作
-    this.appData = [
-      {
-        title: '设置',
-        description: '打开应用设置',
-        icon: SettingsIcon,
-        keywords: ['设置', 'settings', 'config', '配置', 'preferences'],
-        action: () => this.router?.push('/setting_window')
-      },
-      {
-        title: '终端',
-        description: '打开系统终端',
-        icon: TerminalIcon,
-        keywords: ['终端', 'terminal', 'cmd', '命令行', 'shell', 'bash'],
-        action: () => this.openTerminal()
-      },
-      {
-        title: '快速助手',
-        description: '打开快速助手',
-        icon: MessageSquareIcon,
-        keywords: ['助手', 'assistant', 'help', '帮助', 'ai'],
-        action: () => this.openAssistant()
-      },
-      {
-        title: '注册全局快捷键',
-        description: '注册 Alt+Space 全局快捷键',
-        icon: FolderIcon,
-        keywords: ['快捷键', 'shortcut', 'hotkey', '全局', 'global'],
-        action: () => this.testGlobalShortcut()
-      },
-      {
-        title: '隐藏窗口',
-        description: '切换到无头模式',
-        icon: FileIcon,
-        keywords: ['隐藏', 'hide', '无头', 'headless', 'minimize'],
-        action: () => this.testHeadlessMode()
-      }
-    ]
-
-    logger.info('应用搜索插件初始化完成')
+    // 动态加载所有图标
+    try {
+      const iconNames = this.appData.map(app => app.iconName)
+      const icons = await Promise.all(
+        iconNames.map(async (iconName) => {
+          try {
+            const icon = await getIcon(iconName)
+            return { iconName, icon }
+          } catch (error) {
+            logger.warn(`图标加载失败: ${iconName}`, error)
+            return { iconName, icon: null }
+          }
+        })
+      )
+      
+      // 更新应用数据中的图标
+      icons.forEach(({ iconName, icon }) => {
+        this.iconCache.set(iconName, icon)
+        const app = this.appData.find(a => a.iconName === iconName)
+        if (app) {
+          app.icon = icon
+        }
+      })
+      
+      // 设置默认图标
+      this.icon = this.iconCache.get(ICON_MAP.Settings) || null
+      
+      // 更新应用数据中的路由依赖动作
+      this.appData = [
+        {
+          title: '设置',
+          description: '打开应用设置',
+          iconName: ICON_MAP.Settings,
+          icon: this.iconCache.get(ICON_MAP.Settings),
+          keywords: ['设置', 'settings', 'config', '配置', 'preferences'],
+          action: () => this.router?.push('/setting_window')
+        },
+        {
+          title: '终端',
+          description: '打开系统终端',
+          iconName: ICON_MAP.Terminal,
+          icon: this.iconCache.get(ICON_MAP.Terminal),
+          keywords: ['终端', 'terminal', 'cmd', '命令行', 'shell', 'bash'],
+          action: () => this.openTerminal()
+        },
+        {
+          title: '快速助手',
+          description: '打开快速助手',
+          iconName: ICON_MAP.MessageSquare,
+          icon: this.iconCache.get(ICON_MAP.MessageSquare),
+          keywords: ['助手', 'assistant', 'help', '帮助', 'ai'],
+          action: () => this.openAssistant()
+        },
+        {
+          title: '注册全局快捷键',
+          description: '注册 Alt+Space 全局快捷键',
+          iconName: ICON_MAP.Folder,
+          icon: this.iconCache.get(ICON_MAP.Folder),
+          keywords: ['快捷键', 'shortcut', 'hotkey', '全局', 'global'],
+          action: () => this.testGlobalShortcut()
+        },
+        {
+          title: '隐藏窗口',
+          description: '切换到无头模式',
+          iconName: ICON_MAP.File,
+          icon: this.iconCache.get(ICON_MAP.File),
+          keywords: ['隐藏', 'hide', '无头', 'headless', 'minimize'],
+          action: () => this.testHeadlessMode()
+        }
+      ]
+      
+      logger.info('应用搜索插件初始化完成')
+    } catch (error) {
+      const appError = handlePluginError('应用搜索插件初始化', error)
+      logger.error('应用搜索插件初始化失败', appError)
+      // 图标加载失败不应阻止插件工作
+    }
   }
 
   private initializeAppData(): void {
@@ -89,35 +123,40 @@ export class AppsSearchPlugin implements SearchPlugin {
       {
         title: '设置',
         description: '打开应用设置',
-        icon: SettingsIcon,
+        iconName: ICON_MAP.Settings,
+        icon: null, // 将在初始化时加载
         keywords: ['设置', 'settings', 'config', '配置', 'preferences'],
         action: () => logger.warn('路由未初始化')
       },
       {
         title: '终端',
         description: '打开系统终端',
-        icon: TerminalIcon,
+        iconName: ICON_MAP.Terminal,
+        icon: null, // 将在初始化时加载
         keywords: ['终端', 'terminal', 'cmd', '命令行', 'shell', 'bash'],
         action: () => this.openTerminal()
       },
       {
         title: '快速助手',
         description: '打开快速助手',
-        icon: MessageSquareIcon,
+        iconName: ICON_MAP.MessageSquare,
+        icon: null, // 将在初始化时加载
         keywords: ['助手', 'assistant', 'help', '帮助', 'ai'],
         action: () => this.openAssistant()
       },
       {
         title: '注册全局快捷键',
         description: '注册 Alt+Space 全局快捷键',
-        icon: FolderIcon,
+        iconName: ICON_MAP.Folder,
+        icon: null, // 将在初始化时加载
         keywords: ['快捷键', 'shortcut', 'hotkey', '全局', 'global'],
         action: () => this.testGlobalShortcut()
       },
       {
         title: '隐藏窗口',
         description: '切换到无头模式',
-        icon: FileIcon,
+        iconName: ICON_MAP.File,
+        icon: null, // 将在初始化时加载
         keywords: ['隐藏', 'hide', '无头', 'headless', 'minimize'],
         action: () => this.testHeadlessMode()
       }
