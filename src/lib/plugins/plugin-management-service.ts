@@ -1,11 +1,12 @@
+import { getActivePinia } from 'pinia'
+import { handlePluginError } from '../error-handler'
+import { logger } from '../logger'
 import { pluginManager } from '../search-plugin-manager'
 import type { SearchPlugin } from '../search-plugins'
 import { pluginLazyLoader } from './lazy-loader'
 import { MetricType, monitored, performanceMonitor } from './performance-monitor'
 import { usePluginStateStore } from './plugin-state-manager'
 import { pluginStatisticsManager } from './plugin-statistics'
-import { logger } from '../logger'
-import { handlePluginError } from '../error-handler'
 import type {
   EnhancedSearchPlugin,
   PluginCatalogItem,
@@ -170,7 +171,6 @@ export class PluginManagementService {
     
     try {
       // 检查 Pinia 是否已经激活
-      const { getActivePinia } = require('pinia')
       const pinia = getActivePinia()
       
       if (!pinia) {
@@ -193,17 +193,21 @@ export class PluginManagementService {
   private initializeStateStore(): void {
     try {
       // 检查 Pinia 是否已经激活
-      const { getActivePinia } = require('pinia')
-      const pinia = getActivePinia()
-      
-      if (!pinia) {
-        // Pinia 未激活，设置为 null，稍后通过 lazy loading 初始化
-        this.stateStore = null
-        logger.warn('Pinia not yet activated in PluginManagementService, will lazy load state store')
-        return
-      }
-      
-      this.stateStore = usePluginStateStore()
+      // 使用动态导入替代 require 调用以兼容 ES 模块系统
+      import('pinia').then(({ getActivePinia }) => {
+        const pinia = getActivePinia()
+        
+        if (!pinia) {
+          // Pinia 未激活，设置为 null，稍后通过 lazy loading 初始化
+          this.stateStore = null
+          logger.warn('Pinia not yet activated in PluginManagementService, will lazy load state store')
+          return
+        }
+        
+        this.stateStore = usePluginStateStore()
+      }).catch(error => {
+        throw error;
+      });
     } catch (error) {
       const appError = handlePluginError('State store not available', error)
       logger.warn('State store not available in PluginManagementService', appError)

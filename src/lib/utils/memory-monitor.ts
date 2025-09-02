@@ -174,15 +174,28 @@ export class MemoryMonitor {
    * 获取当前内存使用情况
    */
   getCurrentMemoryUsage(): MemorySnapshot {
-    const usage = process.memoryUsage()
-    
-    return {
-      timestamp: Date.now(),
-      heapUsed: usage.heapUsed,
-      heapTotal: usage.heapTotal,
-      rss: usage.rss,
-      external: usage.external,
-      arrayBuffers: usage.arrayBuffers || 0
+    // 检查是否在 Node.js 环境中
+    if (typeof process !== 'undefined' && process.memoryUsage) {
+      const usage = process.memoryUsage()
+      
+      return {
+        timestamp: Date.now(),
+        heapUsed: usage.heapUsed,
+        heapTotal: usage.heapTotal,
+        rss: usage.rss,
+        external: usage.external,
+        arrayBuffers: usage.arrayBuffers || 0
+      }
+    } else {
+      // 浏览器环境或不支持的环境返回默认值
+      return {
+        timestamp: Date.now(),
+        heapUsed: 0,
+        heapTotal: 0,
+        rss: 0,
+        external: 0,
+        arrayBuffers: 0
+      }
     }
   }
 
@@ -523,10 +536,10 @@ export function createMemoryMonitor(config?: MemoryMonitorConfig): MemoryMonitor
  * 全局内存监控器实例
  */
 export const globalMemoryMonitor = createMemoryMonitor({
-  verboseLogging: process.env.NODE_ENV === 'development'
+  verboseLogging: typeof process !== 'undefined' && process.env.NODE_ENV === 'development'
 })
 
 // 自动启动（生产环境默认关闭）
-if (process.env.NODE_ENV === 'development' || process.env.MEMORY_MONITOR === 'true') {
+if (typeof process !== 'undefined' && (process.env.NODE_ENV === 'development' || process.env.MEMORY_MONITOR === 'true')) {
   globalMemoryMonitor.start()
 }

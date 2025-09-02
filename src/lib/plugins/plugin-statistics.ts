@@ -2,6 +2,7 @@ import type { PluginStatistics, PluginCategory, PluginUsageMetrics } from './typ
 import { useUnifiedStateStore } from '../state/unified-state-manager'
 import { logger } from '../logger'
 import { handlePluginError } from '../error-handler'
+import { getActivePinia } from 'pinia'
 
 /**
  * Plugin statistics utilities
@@ -10,19 +11,43 @@ export class PluginStatisticsManager {
   private stateStore: ReturnType<typeof useUnifiedStateStore> | null = null
 
   constructor() {
+    // 使用延迟初始化，不在构造函数中直接初始化 store
+    this.stateStore = null
+  }
+
+  /**
+   * 获取状态存储实例，如果尚未初始化则尝试初始化
+   */
+  private getStateStore(): ReturnType<typeof useUnifiedStateStore> | null {
+    if (this.stateStore) {
+      return this.stateStore
+    }
+
     try {
+      // 检查 Pinia 是否已经激活
+      const pinia = getActivePinia()
+      
+      if (!pinia) {
+        logger.warn('Pinia not yet activated, unified state store not available for statistics')
+        return null
+      }
+      
       this.stateStore = useUnifiedStateStore()
+      return this.stateStore
     } catch (error) {
       const appError = handlePluginError('State store not available for statistics', error)
       logger.warn('State store not available for statistics:', appError)
+      return null
     }
   }
 
   /**
-   * Get current plugin statistics
+   * Get or initialize state store with lazy loading
    */
   getStatistics(): PluginStatistics {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+
+    if (!stateStore) {
       return {
         total: 0,
         installed: 0,
@@ -32,7 +57,7 @@ export class PluginStatisticsManager {
       }
     }
 
-    return this.stateStore.plugins.statistics
+    return stateStore.plugins.statistics
   }
 
   /**
@@ -44,11 +69,13 @@ export class PluginStatisticsManager {
     withErrors: number
     total: number
   } {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+
+    if (!stateStore) {
       return { healthy: 0, withWarnings: 0, withErrors: 0, total: 0 }
     }
 
-    const allMetrics = Object.values(this.stateStore.plugins.usageMetrics)
+    const allMetrics = Object.values(stateStore.plugins.usageMetrics)
     const total = allMetrics.length
     
     let healthy = 0
@@ -79,7 +106,9 @@ export class PluginStatisticsManager {
     mostActivePlugin: string | null
     leastActivePlugin: string | null
   } {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+
+    if (!stateStore) {
       return {
         totalSearches: 0,
         totalResults: 0,
@@ -89,7 +118,7 @@ export class PluginStatisticsManager {
       }
     }
 
-    const allMetrics = Object.entries(this.stateStore.plugins.usageMetrics)
+    const allMetrics = Object.entries(stateStore.plugins.usageMetrics)
     
     if (allMetrics.length === 0) {
       return {
@@ -131,11 +160,13 @@ export class PluginStatisticsManager {
     count: number
     percentage: number
   }> {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+
+    if (!stateStore) {
       return []
     }
 
-    const { byCategory, total } = this.stateStore.plugins.statistics
+    const { byCategory, total } = stateStore.plugins.statistics
     
     return Object.entries(byCategory).map(([category, count]) => ({
       category: category as PluginCategory,
@@ -153,7 +184,9 @@ export class PluginStatisticsManager {
     mostReliablePlugin: { id: string; successRate: number } | null
     leastReliablePlugin: { id: string; successRate: number } | null
   } {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+
+    if (!stateStore) {
       return {
         fastestPlugin: null,
         slowestPlugin: null,
@@ -162,7 +195,7 @@ export class PluginStatisticsManager {
       }
     }
 
-    const allMetrics = Object.entries(this.stateStore.plugins.usageMetrics)
+    const allMetrics = Object.entries(stateStore.plugins.usageMetrics)
       .filter(([, metrics]) => (metrics as PluginUsageMetrics).searchCount > 0) // Only consider plugins that have been used
 
     if (allMetrics.length === 0) {
@@ -242,7 +275,9 @@ export class PluginStatisticsManager {
     reason: string
     priority: 'low' | 'medium' | 'high'
   }> {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+
+    if (!stateStore) {
       return []
     }
 
@@ -253,8 +288,8 @@ export class PluginStatisticsManager {
       priority: 'low' | 'medium' | 'high'
     }> = []
 
-    const allMetrics = Object.entries(this.stateStore.plugins.usageMetrics)
-    const enabledStates = this.stateStore.plugins.enabledStates
+    const allMetrics = Object.entries(stateStore.plugins.usageMetrics)
+    const enabledStates = stateStore.plugins.enabledStates
 
     for (const [pluginId, metrics] of allMetrics) {
       const isEnabled = enabledStates[pluginId] ?? true

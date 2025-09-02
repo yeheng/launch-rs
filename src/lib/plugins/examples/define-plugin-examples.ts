@@ -1,6 +1,6 @@
-import { definePlugin, createSimplePlugin, createPrefixPlugin } from './define-plugin'
-import type { SearchContext, SearchResultItem } from '../search-plugins'
-import { logger } from '../logger'
+import { logger } from '../../logger'
+import type { SearchContext, SearchResultItem } from '../../search-plugins'
+import { createPrefixPlugin, createSimplePlugin, definePlugin } from '../define-plugin'
 
 /**
  * 使用 definePlugin 创建的示例插件

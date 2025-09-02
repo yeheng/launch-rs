@@ -11,6 +11,7 @@ import { logger } from './logger'
 import { handlePluginError } from './error-handler'
 import { InputValidator } from './security/input-validator'
 import { searchCache, withSearchCache } from './cache/search-cache'
+import { getActivePinia } from 'pinia'
 
 /**
  * 搜索插件管理器实现
@@ -32,7 +33,14 @@ export class SearchPluginManager implements PluginManager {
 
     // Initialize state store
     try {
-      this.stateStore = useUnifiedStateStore()
+      // 检查 Pinia 是否已经激活
+      const pinia = getActivePinia()
+      
+      if (!pinia) {
+        logger.warn('Pinia not yet activated, unified state store not available for plugin manager')
+      } else {
+        this.stateStore = useUnifiedStateStore()
+      }
     } catch (error) {
       logger.warn('State store not available, running without persistence:', error)
     }
@@ -41,6 +49,31 @@ export class SearchPluginManager implements PluginManager {
     this.setupStateChangeListeners()
 
     this.isInitialized = true
+  }
+
+  /**
+   * 获取状态存储实例，如果尚未初始化则尝试初始化
+   */
+  private getStateStore(): ReturnType<typeof useUnifiedStateStore> | null {
+    if (this.stateStore) {
+      return this.stateStore
+    }
+
+    try {
+      // 检查 Pinia 是否已经激活
+      const pinia = getActivePinia()
+      
+      if (!pinia) {
+        logger.warn('Pinia not yet activated, unified state store not available for plugin manager')
+        return null
+      }
+      
+      this.stateStore = useUnifiedStateStore()
+      return this.stateStore
+    } catch (error) {
+      logger.warn('State store not available, running without persistence:', error)
+      return null
+    }
   }
 
   /**
@@ -53,11 +86,12 @@ export class SearchPluginManager implements PluginManager {
 
     try {
       // Initialize plugin state in store
-      if (this.stateStore) {
-        this.stateStore.initializePlugin(plugin.id)
+      const stateStore = this.getStateStore()
+      if (stateStore) {
+        stateStore.initializePlugin(plugin.id)
 
         // Apply persisted enabled state
-        plugin.enabled = this.stateStore.isPluginEnabled(plugin.id)
+        plugin.enabled = stateStore.isPluginEnabled(plugin.id)
       }
 
       // 初始化插件
@@ -98,8 +132,9 @@ export class SearchPluginManager implements PluginManager {
       this.plugins.delete(pluginId)
 
       // Remove from state store
-      if (this.stateStore) {
-        this.stateStore.removePlugin(pluginId)
+      const stateStore = this.getStateStore()
+      if (stateStore) {
+        stateStore.removePlugin(pluginId)
       }
 
       this.emit('plugin:unregistered', pluginId)
@@ -159,8 +194,9 @@ export class SearchPluginManager implements PluginManager {
     plugin.enabled = true
 
     // Persist state
-    if (this.stateStore) {
-      this.stateStore.setPluginEnabled(pluginId, true)
+    const stateStore = this.getStateStore()
+    if (stateStore) {
+      stateStore.setPluginEnabled(pluginId, true)
     }
 
     this.emit('plugin:enabled', pluginId)
@@ -183,8 +219,9 @@ export class SearchPluginManager implements PluginManager {
     plugin.enabled = false
 
     // Persist state
-    if (this.stateStore) {
-      this.stateStore.setPluginEnabled(pluginId, false)
+    const stateStore = this.getStateStore()
+    if (stateStore) {
+      stateStore.setPluginEnabled(pluginId, false)
     }
 
     this.emit('plugin:disabled', pluginId)
@@ -283,8 +320,9 @@ export class SearchPluginManager implements PluginManager {
         } finally {
           // Record plugin usage metrics
           const pluginSearchTime = Date.now() - pluginStartTime
-          if (this.stateStore) {
-            this.stateStore.recordPluginUsage(
+          const stateStore = this.getStateStore()
+          if (stateStore) {
+            stateStore.recordPluginUsage(
               plugin.id,
               pluginSearchTime,
               pluginResults.length,
@@ -437,17 +475,19 @@ export class SearchPluginManager implements PluginManager {
    * 获取插件配置
    */
   getPluginConfig(pluginId: string): Record<string, any> {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       return {}
     }
-    return this.stateStore.getPluginConfig(pluginId)
+    return stateStore.getPluginConfig(pluginId)
   }
 
   /**
    * 设置插件配置
    */
   setPluginConfig(pluginId: string, config: Record<string, any>): void {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       logger.warn('State store not available, configuration not persisted')
       return
     }
@@ -457,7 +497,7 @@ export class SearchPluginManager implements PluginManager {
       throw new Error(`插件 ${pluginId} 不存在`)
     }
 
-    this.stateStore.setPluginConfig(pluginId, config)
+    stateStore.setPluginConfig(pluginId, config)
 
     // Apply configuration to plugin if it has a configure method
     if ('configure' in plugin && typeof plugin.configure === 'function') {
@@ -476,14 +516,15 @@ export class SearchPluginManager implements PluginManager {
    * 更新插件配置
    */
   updatePluginConfig(pluginId: string, updates: Record<string, any>): void {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       logger.warn('State store not available, configuration not persisted')
       return
     }
 
-    this.stateStore.updatePluginConfig(pluginId, updates)
+    stateStore.updatePluginConfig(pluginId, updates)
 
-    const newConfig = this.stateStore.getPluginConfig(pluginId)
+    const newConfig = stateStore.getPluginConfig(pluginId)
     const plugin = this.plugins.get(pluginId)
 
     // Apply configuration to plugin if it has a configure method
@@ -503,7 +544,8 @@ export class SearchPluginManager implements PluginManager {
    * 获取插件统计信息
    */
   getPluginStatistics() {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       return {
         total: this.plugins.size,
         installed: this.plugins.size,
@@ -513,14 +555,15 @@ export class SearchPluginManager implements PluginManager {
       }
     }
 
-    return this.stateStore.statistics
+    return stateStore.statistics
   }
 
   /**
    * 获取插件使用指标
    */
   getPluginMetrics(pluginId: string) {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       return {
         searchCount: 0,
         resultsCount: 0,
@@ -531,83 +574,89 @@ export class SearchPluginManager implements PluginManager {
       }
     }
 
-    return this.stateStore.getPluginMetrics(pluginId)
+    return stateStore.getPluginMetrics(pluginId)
   }
 
   /**
    * 获取最常用的插件
    */
   getMostUsedPlugins(limit = 5) {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       return []
     }
 
-    return this.stateStore.mostUsedPlugins(limit)
+    return stateStore.mostUsedPlugins(limit)
   }
 
   /**
    * 获取有问题的插件
    */
   getPluginsWithIssues(): string[] {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       return []
     }
 
-    return this.stateStore.pluginsWithIssues
+    return stateStore.pluginsWithIssues
   }
 
   /**
    * 重置插件指标
    */
   resetPluginMetrics(pluginId: string): void {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       logger.warn('State store not available, metrics not reset')
       return
     }
 
-    this.stateStore.resetPluginMetrics(pluginId)
+    stateStore.resetPluginMetrics(pluginId)
   }
 
   /**
    * 重置所有指标
    */
   resetAllMetrics(): void {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       logger.warn('State store not available, metrics not reset')
       return
     }
 
-    this.stateStore.resetAllMetrics()
+    stateStore.resetAllMetrics()
   }
 
   /**
    * 导出插件状态
    */
   exportPluginState() {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       return null
     }
 
-    return this.stateStore.exportState()
+    return stateStore.exportState()
   }
 
   /**
    * 导入插件状态
    */
   importPluginState(state: any): void {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       logger.warn('State store not available, state not imported')
       return
     }
 
-    this.stateStore.importState(state)
+    stateStore.importState(state)
 
     // Apply persisted states to current plugins
     for (const [pluginId, plugin] of this.plugins) {
-      plugin.enabled = this.stateStore.isPluginEnabled(pluginId)
+      plugin.enabled = stateStore.isPluginEnabled(pluginId)
 
       // Apply configuration if plugin supports it
-      const config = this.stateStore.getPluginConfig(pluginId)
+      const config = stateStore.getPluginConfig(pluginId)
       if (Object.keys(config).length > 0 && 'configure' in plugin && typeof plugin.configure === 'function') {
         try {
           (plugin as any).configure(config)
@@ -660,7 +709,8 @@ export class SearchPluginManager implements PluginManager {
    * 更新统计信息
    */
   private updateStatistics(): void {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       return
     }
 
@@ -675,8 +725,8 @@ export class SearchPluginManager implements PluginManager {
       }
     }
 
-    this.stateStore.updateCategoryStatistics(categoryStats)
-    this.stateStore.updateStatistics()
+    stateStore.updateCategoryStatistics(categoryStats)
+    stateStore.updateStatistics()
   }
 
   /**
