@@ -9,6 +9,16 @@ import { TestUtils } from './test-utils'
 // Mock Tauri API for E2E environment
 const mockTauriInvoke = vi.fn()
 
+// 简化的 mock 设置
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: mockTauriInvoke
+}))
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(),
+  emit: vi.fn()
+}))
+
 // 创建更真实的localStorage实现
 const createRealisticStorage = () => {
   const storage = new Map<string, string>()
@@ -24,6 +34,11 @@ const createRealisticStorage = () => {
 const realisticLocalStorage = createRealisticStorage()
 const realisticSessionStorage = createRealisticStorage()
 
+// 设置全局 window 对象（如果不存在）
+if (typeof window === 'undefined') {
+  (global as any).window = {}
+}
+
 // 设置全局存储
 Object.defineProperty(window, 'localStorage', { 
   value: realisticLocalStorage, 
@@ -33,16 +48,6 @@ Object.defineProperty(window, 'sessionStorage', {
   value: realisticSessionStorage, 
   writable: true 
 })
-
-// Mock Tauri API with realistic responses
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: mockTauriInvoke
-}))
-
-vi.mock('@tauri-apps/api/event', () => ({
-  listen: vi.fn(),
-  emit: vi.fn()
-}))
 
 // 模拟文件系统响应
 mockTauriInvoke.mockImplementation((command: string, args?: any) => {

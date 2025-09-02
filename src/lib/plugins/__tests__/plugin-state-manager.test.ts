@@ -1,19 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { usePluginStateStore } from '../plugin-state-manager'
-import type { EnhancedSearchPlugin, PluginCategory } from '../types'
-import { PluginUtils } from '../types'
-
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-}
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock
-})
+import type { EnhancedSearchPlugin } from '../types'
+import { PluginCategory } from '../types/basic'
 
 describe('PluginStateManager', () => {
   beforeEach(() => {
@@ -33,8 +22,23 @@ describe('PluginStateManager', () => {
       enabled: true,
       priority: 1,
       search: vi.fn(),
-      metadata: PluginUtils.createBasicMetadata({} as any),
-      installation: PluginUtils.createBuiltInInstallation(),
+      metadata: {
+        author: 'Unknown',
+        license: 'Unknown',
+        keywords: [],
+        installDate: new Date(),
+        lastUpdated: new Date(),
+        fileSize: 0,
+        dependencies: [],
+        category: PluginCategory.UTILITIES
+      },
+      installation: {
+        isInstalled: true,
+        isBuiltIn: true,
+        canUninstall: false,
+        installMethod: 'builtin',
+        status: 'installed' as any
+      },
       permissions: []
     }
 

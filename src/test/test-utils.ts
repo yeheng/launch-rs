@@ -1,7 +1,7 @@
 import { vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import type { EnhancedSearchPlugin } from '@/lib/plugins'
-import { PluginCategory, PluginPermissionType, PluginUtils } from '@/lib/plugins'
+import { PluginCategory, PluginPermissionType } from '@/lib/plugins/types/basic'
 
 /**
  * 测试工具函数集合
@@ -40,17 +40,22 @@ export class TestUtils {
           }
         ]
       },
-      metadata: PluginUtils.createBasicMetadata({
+      metadata: {
         author: 'Test Author',
-        category: PluginCategory.UTILITIES,
+        license: 'Unknown',
+        homepage: undefined,
+        repository: undefined,
         keywords: ['test', 'utility'],
         installDate: new Date('2024-01-01'),
         lastUpdated: new Date('2024-01-15'),
         fileSize: 1024,
         dependencies: [],
+        category: PluginCategory.UTILITIES,
+        screenshots: undefined,
         rating: 4.5,
-        downloadCount: 100
-      }),
+        downloadCount: 100,
+        minAppVersion: undefined
+      },
       installation: {
         isInstalled: true,
         isBuiltIn: false,

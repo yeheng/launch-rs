@@ -9,14 +9,13 @@ import type {
   PluginValidationResult, 
   PluginValidationError, 
   PluginValidationWarning,
-  PluginSecurityAssessment,
-  PluginPermissions
+  PluginSecurityAssessment
 } from './health'
 import { 
   PluginSecurityLevel,
-  PluginSecurityIssueType,
-  PluginPermissionType
+  PluginSecurityIssueType
 } from './health'
+import type { PluginPermissions, PluginPermissionType } from './basic'
 import type { PluginSettingDefinition } from './basic'
 
 /**

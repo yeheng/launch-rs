@@ -8,7 +8,15 @@ import { FileSearchPlugin } from '@/lib/plugins/builtin/file-plugin'
  * 验证核心搜索插件的正确性和稳定性
  */
 
+// 导入Tauri API以访问mock
+import { invoke } from '@tauri-apps/api/core'
+
 describe('内置插件功能测试', () => {
+  beforeEach(() => {
+    // 重置所有mock - setup文件会处理重置
+    vi.clearAllMocks()
+  })
+
   describe('AppsSearchPlugin', () => {
     let appsPlugin: AppsSearchPlugin
 
@@ -29,20 +37,6 @@ describe('内置插件功能测试', () => {
     })
 
     it('应该能够搜索应用', async () => {
-      // Mock Vue Router
-      vi.mock('vue-router', () => ({
-        useRouter: () => ({
-          push: vi.fn()
-        })
-      }))
-
-      // Mock icon manager
-      vi.mock('@/lib/utils/icon-manager', () => ({
-        useIcon: () => ({
-          getIcon: vi.fn().mockResolvedValue({ icon: 'test-icon' })
-        }),
-        ICON_MAP: {}
-      }))
 
       await appsPlugin.initialize()
       
@@ -186,13 +180,11 @@ describe('内置插件功能测试', () => {
     })
 
     it('应该能够搜索文件', async () => {
-      // Mock Tauri invoke
-      vi.mock('@tauri-apps/api/core', () => ({
-        invoke: vi.fn().mockResolvedValue([
-          { name: 'test.txt', path: '/test.txt', size: 100 },
-          { name: 'document.pdf', path: '/document.pdf', size: 2000 }
-        ])
-      }))
+      // 设置 Tauri invoke 返回值
+      ;(invoke as vi.Mock).mockResolvedValue([
+        { name: 'test.txt', path: '/test.txt', size: 100 },
+        { name: 'document.pdf', path: '/document.pdf', size: 2000 }
+      ])
 
       const context = {
         query: 'test',
@@ -242,9 +234,7 @@ describe('内置插件功能测试', () => {
 
     it('应该处理搜索错误', async () => {
       // Mock Tauri invoke error
-      vi.mock('@tauri-apps/api/core', () => ({
-        invoke: vi.fn().mockRejectedValue(new Error('Search failed'))
-      }))
+      ;(invoke as vi.Mock).mockRejectedValue(new Error('Search failed'))
 
       const context = {
         query: 'test',
@@ -266,25 +256,10 @@ describe('内置插件功能测试', () => {
       const calculatorPlugin = new CalculatorPlugin()
       const filePlugin = new FileSearchPlugin()
 
-      // Mock dependencies
-      vi.mock('vue-router', () => ({
-        useRouter: () => ({
-          push: vi.fn()
-        })
-      }))
-
-      vi.mock('@/lib/utils/icon-manager', () => ({
-        useIcon: () => ({
-          getIcon: vi.fn().mockResolvedValue({ icon: 'test-icon' })
-        }),
-        ICON_MAP: {}
-      }))
-
-      vi.mock('@tauri-apps/api/core', () => ({
-        invoke: vi.fn().mockResolvedValue([
-          { name: 'test.txt', path: '/test.txt', size: 100 }
-        ])
-      }))
+      // 设置 Tauri invoke 返回值
+      ;(invoke as vi.Mock).mockResolvedValue([
+        { name: 'test.txt', path: '/test.txt', size: 100 }
+      ])
 
       // Initialize plugins
       await appsPlugin.initialize()

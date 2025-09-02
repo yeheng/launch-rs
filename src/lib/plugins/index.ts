@@ -111,8 +111,25 @@ export {
   type PluginLoadResult
 } from './unified-plugin-loader'
 
-// 导出插件管理服务（新的模块化版本）
-export * from './management'
+// 导出插件管理服务类型（避免循环导入）
+export type {
+  PluginSearchOptions,
+  PluginOperationResult,
+  PluginStatistics,
+  PluginConfigurationUpdateOptions,
+  PluginInstallationOptions,
+  PluginUninstallationOptions,
+  PluginUpdateOptions,
+  PluginHealthCheckOptions,
+  PluginValidationOptions,
+  PluginDiscoveryOptions,
+  PluginDependency,
+  PluginCompatibility,
+  PluginPerformanceMetrics,
+  PluginUsageAnalytics,
+  PluginManagementEvent,
+  IPluginManagementService
+} from './management/interfaces'
 
 // 保持向后兼容性 - 导出旧的 pluginManagementService
 // 注意：这将在未来版本中移除

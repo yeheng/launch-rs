@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { invoke } from '@tauri-apps/api/core'
 import { TestUtils } from '@/test/test-utils'
 import { useSearchPluginManager } from '@/lib/search-plugin-manager'
 import { usePluginStateStore } from '@/lib/plugins/plugin-state-manager'
@@ -317,7 +318,7 @@ describe('异常情况和错误处理测试', () => {
 
     it('应该处理文件系统访问失败', async () => {
       // 模拟文件系统错误
-      vi.mocked(mockTauriInvoke).mockImplementation((command: string) => {
+      ;(invoke as vi.Mock).mockImplementation((command: string) => {
         if (command === 'search_files') {
           return Promise.reject(new Error('Permission denied'))
         }
@@ -328,7 +329,7 @@ describe('异常情况和错误处理测试', () => {
         id: 'file-plugin',
         search: vi.fn().mockImplementation(async (query: string) => {
           // 依赖文件系统的搜索
-          const files = await mockTauriInvoke('search_files', { query })
+          const files = await invoke('search_files', { query })
           return files.map((file: any) => ({
             title: file.name,
             description: file.path,
@@ -488,12 +489,12 @@ describe('异常情况和错误处理测试', () => {
   describe('系统集成异常测试', () => {
     it('应该处理Tauri后端不可用', async () => {
       // 模拟Tauri后端完全不可用
-      vi.mocked(mockTauriInvoke).mockRejectedValue(new Error('Tauri backend unavailable'))
+      ;(invoke as vi.Mock).mockRejectedValue(new Error('Tauri backend unavailable'))
       
       const backendDependentPlugin = TestUtils.createMockPlugin({
         id: 'backend-plugin',
         search: vi.fn().mockImplementation(async (query: string) => {
-          const result = await mockTauriInvoke('search_files', { query })
+          const result = await invoke('search_files', { query })
           return result.map((file: any) => ({
             title: file.name,
             score: 0.8

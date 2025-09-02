@@ -11,9 +11,9 @@ import type {
   PluginCatalogItem,
   PluginHealthStatus,
   PluginHealthLevel,
-  PluginSettingDefinition
+  PluginSettingDefinition,
+  PluginPermissions
 } from './basic'
-import type { PluginPermissions } from './basic'
 
 /**
  * Plugin utility functions

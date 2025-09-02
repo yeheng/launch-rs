@@ -3,7 +3,7 @@
  * 插件健康状态和验证类型
  */
 
-import type { PluginPermissions, PluginPermissionType } from './basic'
+import type { PluginPermissions } from './basic'
 
 /**
  * Plugin health status

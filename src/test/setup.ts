@@ -3,6 +3,16 @@ import { vi, beforeEach, afterEach } from 'vitest'
 // 导入测试工具
 import { TestUtils } from './test-utils'
 
+// 确保 window 对象存在
+if (typeof window === 'undefined') {
+  (global as any).window = {}
+}
+
+// 添加 window 方法
+window.dispatchEvent = vi.fn()
+window.addEventListener = vi.fn()
+window.removeEventListener = vi.fn()
+
 // Mock localStorage
 const localStorageMock = {
   getItem: vi.fn().mockReturnValue(null),
@@ -31,6 +41,9 @@ global.console = {
   error: vi.fn(),
 }
 
+// Mock window.confirm for permission tests
+window.confirm = vi.fn(() => true)
+
 // Mock Tauri API
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn().mockResolvedValue([]),
@@ -40,6 +53,11 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn(),
   emit: vi.fn(),
 }))
+
+// Mock Tauri internals
+window.__TAURI_INTERNALS__ = {
+  invoke: vi.fn().mockResolvedValue([]),
+}
 
 // Mock Vue Router
 vi.mock('vue-router', () => ({
