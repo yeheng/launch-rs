@@ -6,14 +6,15 @@
 import type { SearchPlugin } from '../../search-plugins'
 import type {
   PluginMetadata,
-  PluginInstallation,
-  PluginCategory,
-  PluginCatalogItem,
-  PluginHealthStatus,
-  PluginHealthLevel,
-  PluginSettingDefinition,
-  PluginPermissions
+  PluginInstallation
 } from './basic'
+import type { PluginCatalogItem } from './catalog'
+import type { PluginHealthStatus } from './health'
+import {
+  PluginCategory,
+  PluginInstallationStatus
+} from './basic'
+import { PluginHealthLevel } from './health'
 
 /**
  * Plugin utility functions
@@ -47,7 +48,7 @@ export class PluginUtils {
       isBuiltIn: true,
       canUninstall: false,
       installMethod: 'builtin',
-      status: 'installed' as any // PluginInstallationStatus.INSTALLED
+      status: PluginInstallationStatus.INSTALLED
     }
   }
   

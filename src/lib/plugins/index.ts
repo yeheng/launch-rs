@@ -131,8 +131,15 @@ export type {
   IPluginManagementService
 } from './management/interfaces'
 
+// 导出插件管理错误类型
+export {
+  PluginManagementError,
+  PluginManagementErrorType
+} from './management/errors'
+
 // 保持向后兼容性 - 导出旧的 pluginManagementService
 // 注意：这将在未来版本中移除
+export { pluginManagementService } from './plugin-management-service'
 
 // 导出状态管理
 export { pluginStateListener, usePluginStateStore } from './plugin-state-manager'

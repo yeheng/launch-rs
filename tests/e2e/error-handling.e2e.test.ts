@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { invoke } from '@tauri-apps/api/core'
-import { TestUtils } from '@/test/test-utils'
-import { useSearchPluginManager } from '@/lib/search-plugin-manager'
 import { usePluginStateStore } from '@/lib/plugins/plugin-state-manager'
+import { useSearchPluginManager } from '@/lib/search-plugin-manager'
 import type { SearchResult } from '@/lib/search-plugins'
+import { TestUtils } from '@/test/test-utils'
+import { invoke } from '@tauri-apps/api/core'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('异常情况和错误处理测试', () => {
   let pluginManager: any
@@ -318,7 +318,7 @@ describe('异常情况和错误处理测试', () => {
 
     it('应该处理文件系统访问失败', async () => {
       // 模拟文件系统错误
-      ;(invoke as vi.Mock).mockImplementation((command: string) => {
+      (invoke as vi.Mock).mockImplementation((command: string) => {
         if (command === 'search_files') {
           return Promise.reject(new Error('Permission denied'))
         }

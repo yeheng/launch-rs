@@ -161,14 +161,53 @@ export class PluginManagementService {
   }
 
   /**
-   * Initialize state store
+   * Get or initialize state store with lazy loading
+   */
+  private getStateStore(): ReturnType<typeof usePluginStateStore> | null {
+    if (this.stateStore) {
+      return this.stateStore
+    }
+    
+    try {
+      // 检查 Pinia 是否已经激活
+      const { getActivePinia } = require('pinia')
+      const pinia = getActivePinia()
+      
+      if (!pinia) {
+        logger.warn('Pinia not yet activated, state store not available')
+        return null
+      }
+      
+      this.stateStore = usePluginStateStore()
+      return this.stateStore
+    } catch (error) {
+      const appError = handlePluginError('Failed to initialize state store', error)
+      logger.warn('Failed to initialize state store', appError)
+      return null
+    }
+  }
+
+  /**
+   * Initialize state store with Pinia activation check
    */
   private initializeStateStore(): void {
     try {
+      // 检查 Pinia 是否已经激活
+      const { getActivePinia } = require('pinia')
+      const pinia = getActivePinia()
+      
+      if (!pinia) {
+        // Pinia 未激活，设置为 null，稍后通过 lazy loading 初始化
+        this.stateStore = null
+        logger.warn('Pinia not yet activated in PluginManagementService, will lazy load state store')
+        return
+      }
+      
       this.stateStore = usePluginStateStore()
     } catch (error) {
       const appError = handlePluginError('State store not available', error)
       logger.warn('State store not available in PluginManagementService', appError)
+      this.stateStore = null
     }
   }
 
@@ -1141,10 +1180,11 @@ export class PluginManagementService {
    * Get plugin configuration
    */
   getPluginConfiguration(pluginId: string): Record<string, any> {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       return {}
     }
-    return this.stateStore.getPluginConfig(pluginId)
+    return stateStore.getPluginConfig(pluginId)
   }
 
   /**
@@ -1302,11 +1342,12 @@ export class PluginManagementService {
    * Get plugin enabled state
    */
   isPluginEnabled(pluginId: string): boolean {
-    if (!this.stateStore) {
+    const stateStore = this.getStateStore()
+    if (!stateStore) {
       const plugin = pluginManager.getPlugin(pluginId)
       return plugin?.enabled ?? false
     }
-    return this.stateStore.isPluginEnabled(pluginId)
+    return stateStore.isPluginEnabled(pluginId)
   }
 
   /**

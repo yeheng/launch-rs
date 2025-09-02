@@ -6,35 +6,45 @@
 // Re-export all types from submodules
 // 从子模块重新导出所有类型
 
-// Basic types
-// 基础类型
+// Basic types - export interfaces and complex types only
+// 基础类型 - 仅导出接口和复杂类型
 export type {
   PluginMetadata,
   PluginInstallation,
-  PluginInstallationStatus,
   PluginPermissions,
-  PluginPermissionType,
-  PluginCategory,
   EnhancedSearchPlugin,
   PluginConfigurationSchema,
   PluginSettingDefinition,
   PluginActionDefinition
 } from './basic'
 
-// Health and validation types
-// 健康和验证类型
+// Export enums as values for usage in code (also available as types)
+// 导出枚举作为值供代码使用（同时作为类型可用）
+export {
+  PluginInstallationStatus,
+  PluginPermissionType,
+  PluginCategory
+} from './basic'
+
+// Health and validation types - export interfaces and complex types only
+// 健康和验证类型 - 仅导出接口和复杂类型
 export type {
   PluginHealthStatus,
-  PluginHealthLevel,
   PluginHealthIssue,
-  PluginIssueType,
   PluginMetrics,
   PluginValidationResult,
   PluginValidationError,
   PluginValidationWarning,
   PluginSecurityAssessment,
+  PluginSecurityIssue
+} from './health'
+
+// Export health enums as values for usage in code (also available as types)
+// 导出健康枚举作为值供代码使用（同时作为类型可用）
+export {
+  PluginHealthLevel,
+  PluginIssueType,
   PluginSecurityLevel,
-  PluginSecurityIssue,
   PluginSecurityIssueType
 } from './health'
 

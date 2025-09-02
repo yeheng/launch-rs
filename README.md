@@ -39,10 +39,53 @@
 
 - **框架**: [Vue 3](https://vuejs.org/) + [TypeScript](https://www.typescriptlang.org/)
 - **构建工具**: [Vite](https://vitejs.dev/)
+- **包管理器**: [Bun](https://bun.sh/) (首选) - 高性能的 JavaScript 运行时和包管理器
 - **状态管理**: [Pinia](https://pinia.vuejs.org/) + [pinia-plugin-persistedstate](https://prazdevs.github.io/pinia-plugin-persistedstate/)
 - **UI 框架**: [Shadcn-vue](https://www.shadcn-vue.com/) + [TailwindCSS](https://tailwindcss.com/) + [reka-ui](https://reka-ui.com/)
 - **国际化**: [Vue i18n](https://vue-i18n.intlify.dev/)
 - **测试**: [Vitest](https://vitest.dev/) + [Vue Test Utils](https://test-utils.vuejs.org/)
+
+## 📦 包管理器
+
+### 为什么选择 Bun？
+
+**Bun** 是本项目首选的包管理器，它提供了显著的性能优势：
+
+- **⚡ 极速安装**: 比 npm 快 5-10 倍的依赖安装速度
+- **🚀 内置运行时**: 原生支持 TypeScript 和 JSX，无需额外配置
+- **🛠️ 一体化工具**: 集成了包管理器、运行时、测试运行器和打包器
+- **🔧 兼容性**: 完全兼容 npm 生态系统，可以无缝替换
+
+### 安装 Bun
+
+```bash
+# macOS/Linux
+curl -fsSL https://bun.sh/install | bash
+
+# Windows (PowerShell)
+powershell -c "irm bun.sh/install.ps1 | iex"
+
+# 验证安装
+bun --version
+```
+
+### 使用 Bun
+
+```bash
+# 安装依赖
+bun install
+
+# 运行开发服务器
+bun run dev
+
+# 运行测试
+bun test
+
+# 构建项目
+bun run build
+```
+
+> 💡 **提示**: 如果你已经熟悉 npm/yarn，可以无缝切换到 Bun。所有现有的 npm 命令都有对应的 Bun 等价命令。
 
 ## 🚀 快速开始
 
@@ -50,7 +93,7 @@
 
 - **Node.js**: >= 18.0.0
 - **Rust**: >= 1.70.0
-- **包管理器**: [Bun](https://bun.sh/) (推荐) 或 npm/yarn
+- **包管理器**: [Bun](https://bun.sh/) (首选和推荐) 或 npm/yarn
 
 ### 安装步骤
 
@@ -64,7 +107,7 @@
 2. **安装依赖**
 
    ```bash
-   # 使用 Bun (推荐)
+   # 使用 Bun (首选和推荐)
    bun install
    
    # 或使用 npm
@@ -84,17 +127,17 @@
 ### 构建应用
 
 ```bash
-# 构建前端
+# 构建前端 (使用 Bun)
 bun run build
 
-# 构建完整的桌面应用
+# 构建完整的桌面应用 (使用 Bun)
 bun run tauri build
 ```
 
 ### 运行测试
 
 ```bash
-# 运行前端测试
+# 运行前端测试 (使用 Bun)
 bun test
 
 # 运行 Rust 测试
@@ -224,13 +267,13 @@ LOG_LEVEL=debug
 ### 前端测试
 
 ```bash
-# 运行所有测试
+# 运行所有测试 (使用 Bun)
 bun test
 
-# 运行特定测试文件
+# 运行特定测试文件 (使用 Bun)
 bun test src/lib/plugins/__tests__/plugin-management-service.test.ts
 
-# 运行测试并生成覆盖率报告
+# 运行测试并生成覆盖率报告 (使用 Bun)
 bun test --coverage
 ```
 
@@ -252,23 +295,23 @@ cd src-tauri && cargo tarpaulin
 ### 开发构建
 
 ```bash
-# 构建前端资源
+# 构建前端资源 (使用 Bun)
 bun run build
 
 # 构建 Rust 后端
 cd src-tauri && cargo build
 
-# 完整开发构建
+# 完整开发构建 (使用 Bun)
 bun run tauri build --debug
 ```
 
 ### 生产构建
 
 ```bash
-# 生产环境构建
+# 生产环境构建 (使用 Bun)
 bun run tauri build
 
-# 指定平台构建
+# 指定平台构建 (使用 Bun)
 bun run tauri build --target x86_64-pc-windows-msvc
 bun run tauri build --target x86_64-apple-darwin
 bun run tauri build --target x86_64-unknown-linux-gnu
@@ -277,10 +320,10 @@ bun run tauri build --target x86_64-unknown-linux-gnu
 ### 发布检查
 
 ```bash
-# 检查构建问题
+# 检查构建问题 (使用 Bun)
 bun run tauri build --bundles none
 
-# 检查依赖问题
+# 检查依赖问题 (使用 Bun)
 bun audit
 cd src-tauri && cargo audit
 ```
@@ -290,10 +333,12 @@ cd src-tauri && cargo audit
 ### 开发流程
 
 1. **Fork 项目** 并创建特性分支
-2. **遵循代码规范** (见 [代码规范](docs/code-standards.md))
-3. **编写测试** 确保代码质量
-4. **提交更改** 并推送分支
-5. **创建 Pull Request** 等待审核
+2. **安装 Bun** (如果尚未安装) - 见上方 [包管理器](#-包管理器) 部分
+3. **安装依赖**: `bun install`
+4. **遵循代码规范** (见 [代码规范](docs/code-standards.md))
+5. **编写测试** 确保代码质量: `bun test`
+6. **提交更改** 并推送分支
+7. **创建 Pull Request** 等待审核
 
 ### 代码规范
 

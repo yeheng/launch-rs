@@ -7,7 +7,7 @@
 </template>
 
 <script setup>
-import { ErrorBoundary } from '@/components/ErrorBoundary.vue'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { logger } from '@/lib/logger'
 
 // 处理错误上报

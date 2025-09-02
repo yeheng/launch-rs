@@ -2,39 +2,21 @@
  * Plugin management module exports
  */
 
-// Core management service
-export { PluginManagementService, pluginManagementService } from './plugin-management-service'
-
 // Specialized services
-export { PluginOperationsService, pluginOperationsService } from './plugin-operations'
+export { PluginConfigurationService, pluginConfigurationService } from './plugin-configuration'
 export { PluginDiscoveryService, pluginDiscoveryService } from './plugin-discovery'
 export { PluginHealthService, pluginHealthService } from './plugin-health'
-export { PluginConfigurationService, pluginConfigurationService } from './plugin-configuration'
+export { PluginOperationsService, pluginOperationsService } from './plugin-operations'
 
 // Error handling
 export {
-  PluginManagementErrorType,
-  PluginManagementError,
   createPluginManagementError,
-  PluginErrors
+  PluginErrors, PluginManagementError, PluginManagementErrorType
 } from './errors'
 
 // Interfaces and types
-export {
-  PluginSearchOptions,
-  PluginOperationResult,
-  PluginStatistics,
-  PluginConfigurationUpdateOptions,
-  PluginInstallationOptions,
-  PluginUninstallationOptions,
-  PluginUpdateOptions,
-  PluginHealthCheckOptions,
-  PluginValidationOptions,
-  PluginDiscoveryOptions,
-  PluginDependency,
-  PluginCompatibility,
-  PluginPerformanceMetrics,
-  PluginUsageAnalytics,
-  PluginManagementEvent,
-  IPluginManagementService
+export type {
+  IPluginManagementService, PluginCompatibility, PluginConfigurationUpdateOptions, PluginDependency, PluginDiscoveryOptions, PluginHealthCheckOptions, PluginInstallationOptions, PluginManagementEvent, PluginOperationResult, PluginPerformanceMetrics, PluginSearchOptions, PluginStatistics, PluginUninstallationOptions,
+  PluginUpdateOptions, PluginUsageAnalytics, PluginValidationOptions
 } from './interfaces'
+

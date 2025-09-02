@@ -57,8 +57,8 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref, computed, onMounted, onUnmounted, onErrorCaptured } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted, onErrorCaptured } from 'vue'
 import { Button } from '@/components/ui/button'
 import { 
   AlertTriangleIcon, 
@@ -87,207 +87,179 @@ interface Props {
   onReport?: (error: AppError) => void
 }
 
-export default defineComponent({
-  name: 'ErrorBoundary',
-  components: {
-    Button,
-    AlertTriangleIcon,
-    RefreshCwIcon,
-    HomeIcon,
-    FlagIcon
-  },
-  props: {
-    name: {
-      type: String,
-      default: 'UnnamedErrorBoundary'
+const props = withDefaults(defineProps<Props>(), {
+  name: 'UnnamedErrorBoundary',
+  showDetails: () => import.meta.env.DEV,
+  showReportButton: false,
+  fallbackTitle: '页面出现错误',
+  fallbackMessage: '很抱歉，页面遇到了一些问题'
+})
+
+const emit = defineEmits<{
+  report: [error: AppError]
+}>()
+
+const hasError = ref(false)
+const error = ref<AppError | null>(null)
+
+/**
+ * 错误捕获处理
+ */
+onErrorCaptured((err, _instance, info) => {
+  // 阻止错误继续传播
+  handleError(err, info)
+  return false // 阻止错误继续向上传播
+})
+
+/**
+ * 处理错误
+ */
+const handleError = (err: any, info?: string) => {
+  logger.error(`ErrorBoundary [${props.name}] 捕获错误:`, { error: err, info })
+  
+  // 创建结构化错误对象
+  const appError: AppError = {
+    type: 'unknown' as any,
+    severity: 'high' as any,
+    message: err?.message || err?.toString() || '未知错误',
+    userMessage: props.fallbackMessage,
+    details: {
+      error: err,
+      component: props.name,
+      info,
+      timestamp: Date.now()
     },
-    showDetails: {
-      type: Boolean,
-      default: () => import.meta.env.DEV
-    },
-    showReportButton: {
-      type: Boolean,
-      default: false
-    },
-    fallbackTitle: {
-      type: String,
-      default: '页面出现错误'
-    },
-    fallbackMessage: {
-      type: String,
-      default: '很抱歉，页面遇到了一些问题'
-    },
-    onRetry: {
-      type: Function as () => (() => Promise<void> | void) | undefined
-    },
-    onReport: {
-      type: Function as () => ((error: AppError) => void) | undefined
-    }
-  },
-  setup(props, { emit }) {
-    const hasError = ref(false)
-    const error = ref<AppError | null>(null)
-
-    /**
-     * 错误捕获处理
-     */
-    onErrorCaptured((err, _instance, info) => {
-      // 阻止错误继续传播
-      handleError(err, info)
-      return false // 阻止错误继续向上传播
-    })
-
-    /**
-     * 处理错误
-     */
-    const handleError = (err: any, info?: string) => {
-      logger.error(`ErrorBoundary [${props.name}] 捕获错误:`, { error: err, info })
-      
-      // 创建结构化错误对象
-      const appError: AppError = {
-        type: 'unknown' as any,
-        severity: 'high' as any,
-        message: err?.message || err?.toString() || '未知错误',
-        userMessage: props.fallbackMessage,
-        details: {
-          error: err,
-          component: props.name,
-          info,
-          timestamp: Date.now()
-        },
-        recoverable: isRecoverable(err),
-        timestamp: Date.now()
-      }
-      
-      error.value = appError
-      hasError.value = true
-      
-      // 发送错误事件到事件总线
-      pluginEventBus.emit(eventBusUtils.createPluginErrorEvent(
-        'plugin.error occurred',
-        props.name,
-        'component_error',
-        appError.message,
-        { error: err, component: props.name, info },
-        'high'
-      ))
-      
-      // 调用错误上报回调
-      if (props.onReport) {
-        props.onReport(appError)
-      }
-      
-      // 发送错误上报事件
-      emit('report', appError)
-    }
-
-    /**
-     * 重试操作
-     */
-    const handleRetry = async () => {
-      if (!props.onRetry) {
-        // 默认重试行为：清除错误状态
-        hasError.value = false
-        error.value = null
-        return
-      }
-      
-      try {
-        await props.onRetry()
-        hasError.value = false
-        error.value = null
-        logger.info(`ErrorBoundary [${props.name}] 重试成功`)
-      } catch (retryError) {
-        logger.error(`ErrorBoundary [${props.name}] 重试失败:`, retryError)
-        // 更新错误信息
-        handleError(retryError, 'retry_failed')
-      }
-    }
-
-    /**
-     * 重新加载页面
-     */
-    const handleReload = () => {
-      logger.info(`ErrorBoundary [${props.name}] 重新加载页面`)
-      window.location.reload()
-    }
-
-    /**
-     * 上报错误
-     */
-    const handleReport = () => {
-      if (!error.value) return
-      
-      logger.warn('用户上报错误:', error.value)
-      
-      // 这里可以实现具体的上报逻辑，比如发送到错误监控服务
-      // 目前只记录日志
-      
-      // 显示感谢信息
-      const originalMessage = error.value.userMessage
-      error.value.userMessage = '感谢您的反馈！我们已收到问题报告。'
-      
-      setTimeout(() => {
-        if (error.value) {
-          error.value.userMessage = originalMessage
-        }
-      }, 3000)
-    }
-
-    /**
-     * 重置错误状态
-     */
-    const resetError = () => {
-      hasError.value = false
-      error.value = null
-    }
-
-    /**
-     * 监听全局错误重置事件
-     */
-    const handleGlobalErrorReset = () => {
-      resetError()
-    }
-
-    onMounted(() => {
-      // 监听全局错误重置事件
-      pluginEventBus.on('plugin.error.recovered', handleGlobalErrorReset)
-    })
-
-    onUnmounted(() => {
-      // 清理事件监听
-      pluginEventBus.off('plugin.error.recovered', handleGlobalErrorReset)
-    })
-
-    // 计算属性
-    const errorTitle = computed(() => {
-      return props.fallbackTitle
-    })
-
-    const errorMessage = computed(() => {
-      if (!error.value) return props.fallbackMessage
-      return getUserFriendlyMessage(error.value)
-    })
-
-    const errorDetails = computed(() => {
-      if (!error.value || !props.showDetails) return null
-      return JSON.stringify(error.value.details, null, 2)
-    })
-
-    // 暴露方法给父组件
-    return {
-      hasError,
-      error,
-      errorTitle,
-      errorMessage,
-      errorDetails,
-      handleRetry,
-      handleReload,
-      handleReport,
-      resetError,
-      handleError
-    }
+    recoverable: isRecoverable(err),
+    timestamp: Date.now()
   }
+  
+  error.value = appError
+  hasError.value = true
+  
+  // 发送错误事件到事件总线
+  pluginEventBus.emit(eventBusUtils.createPluginErrorEvent(
+    'plugin.error occurred',
+    props.name,
+    'component_error',
+    appError.message,
+    { error: err, component: props.name, info },
+    'high'
+  ))
+  
+  // 调用错误上报回调
+  if (props.onReport) {
+    props.onReport(appError)
+  }
+  
+  // 发送错误上报事件
+  emit('report', appError)
+}
+
+/**
+ * 重试操作
+ */
+const handleRetry = async () => {
+  if (!props.onRetry) {
+    // 默认重试行为：清除错误状态
+    hasError.value = false
+    error.value = null
+    return
+  }
+  
+  try {
+    await props.onRetry()
+    hasError.value = false
+    error.value = null
+    logger.info(`ErrorBoundary [${props.name}] 重试成功`)
+  } catch (retryError) {
+    logger.error(`ErrorBoundary [${props.name}] 重试失败:`, retryError)
+    // 更新错误信息
+    handleError(retryError, 'retry_failed')
+  }
+}
+
+/**
+ * 重新加载页面
+ */
+const handleReload = () => {
+  logger.info(`ErrorBoundary [${props.name}] 重新加载页面`)
+  window.location.reload()
+}
+
+/**
+ * 上报错误
+ */
+const handleReport = () => {
+  if (!error.value) return
+  
+  logger.warn('用户上报错误:', error.value)
+  
+  // 这里可以实现具体的上报逻辑，比如发送到错误监控服务
+  // 目前只记录日志
+  
+  // 显示感谢信息
+  const originalMessage = error.value.userMessage
+  error.value.userMessage = '感谢您的反馈！我们已收到问题报告。'
+  
+  setTimeout(() => {
+    if (error.value) {
+      error.value.userMessage = originalMessage
+    }
+  }, 3000)
+}
+
+/**
+ * 重置错误状态
+ */
+const resetError = () => {
+  hasError.value = false
+  error.value = null
+}
+
+/**
+ * 监听全局错误重置事件
+ */
+const handleGlobalErrorReset = () => {
+  resetError()
+}
+
+onMounted(() => {
+  // 监听全局错误重置事件
+  pluginEventBus.on('plugin.error.recovered', handleGlobalErrorReset)
+})
+
+onUnmounted(() => {
+  // 清理事件监听
+  pluginEventBus.off('plugin.error.recovered', handleGlobalErrorReset)
+})
+
+// 计算属性
+const errorTitle = computed(() => {
+  return props.fallbackTitle
+})
+
+const errorMessage = computed(() => {
+  if (!error.value) return props.fallbackMessage
+  return getUserFriendlyMessage(error.value)
+})
+
+const errorDetails = computed(() => {
+  if (!error.value || !props.showDetails) return null
+  return JSON.stringify(error.value.details, null, 2)
+})
+
+// 暴露方法给父组件
+defineExpose({
+  hasError,
+  error,
+  errorTitle,
+  errorMessage,
+  errorDetails,
+  handleRetry,
+  handleReload,
+  handleReport,
+  resetError,
+  handleError
 })
 </script>
 

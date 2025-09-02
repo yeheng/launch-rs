@@ -30,7 +30,7 @@ const getTimerFunctions = () => {
 
 const { setInterval } = getTimerFunctions()
 
-import { MemoryMonitor as BaseMemoryMonitor } from './memory-monitor'
+import { MemoryMonitor as BaseMemoryMonitor } from '../../utils/memory-monitor'
 
 interface LeakDetectorConfig {
   /** 检测间隔（毫秒） */

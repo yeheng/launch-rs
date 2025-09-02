@@ -1,3 +1,4 @@
+import { getActivePinia } from 'pinia';
 import { useUserStore } from '@/store/modules/user';
 import { createI18n } from 'vue-i18n';
 import enUS from './en-US/common.json';
@@ -23,6 +24,13 @@ export const i18n = createI18n({
 // 初始化语言设置
 export function initI18nLanguage() {
     try {
+        // 检查 Pinia 是否已经激活
+        const pinia = getActivePinia();
+        if (!pinia) {
+            logger.warn('Pinia not yet activated, skipping user language preference loading');
+            return;
+        }
+        
         const userStore = useUserStore();
         if (userStore.preferences.language) {
             i18n.global.locale.value = userStore.preferences.language as 'zh-CN' | 'en-US';

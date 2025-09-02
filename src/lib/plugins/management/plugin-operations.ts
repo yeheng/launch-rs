@@ -25,7 +25,7 @@ import {
  * Plugin operations service
  */
 export class PluginOperationsService {
-  private stateStore = usePluginStateStore()
+  private stateStore: ReturnType<typeof usePluginStateStore> | null = null
 
   /**
    * Install a plugin
@@ -73,10 +73,16 @@ export class PluginOperationsService {
       
       if (installResult.success) {
         // Update state store
-        this.stateStore.setPluginEnabled(pluginId, options.enableAfterInstall ?? true)
+        const stateStore = this.getStateStore()
+        if (stateStore) {
+          stateStore.setPluginEnabled(pluginId, options.enableAfterInstall ?? true)
+        }
         
         // Update statistics
-        this.stateStore.recordPluginUsage(pluginId, 0, 0, false)
+        const stateStore = this.getStateStore()
+        if (stateStore) {
+          stateStore.recordPluginUsage(pluginId, 0, 0, false)
+        }
         
         logger.info(`Successfully installed plugin: ${pluginId}`)
       }
@@ -142,7 +148,10 @@ export class PluginOperationsService {
       
       if (uninstallResult.success) {
         // Update state store
-        this.stateStore.setPluginEnabled(pluginId, false)
+        const stateStore = this.getStateStore()
+        if (stateStore) {
+          stateStore.setPluginEnabled(pluginId, false)
+        }
         
         // Clear plugin data if requested
         if (options.removeData) {
@@ -286,7 +295,10 @@ export class PluginOperationsService {
       await pluginManager.enablePlugin(pluginId)
       
       // Update state store
-      this.stateStore.setPluginEnabled(pluginId, true)
+      const stateStore = this.getStateStore()
+      if (stateStore) {
+        stateStore.setPluginEnabled(pluginId, true)
+      }
       
       logger.info(`Successfully enabled plugin: ${pluginId}`)
       
@@ -347,7 +359,10 @@ export class PluginOperationsService {
       await pluginManager.disablePlugin(pluginId)
       
       // Update state store
-      this.stateStore.setPluginEnabled(pluginId, false)
+      const stateStore = this.getStateStore()
+      if (stateStore) {
+        stateStore.setPluginEnabled(pluginId, false)
+      }
       
       logger.info(`Successfully disabled plugin: ${pluginId}`)
       
@@ -469,7 +484,10 @@ export class PluginOperationsService {
 
   private async clearPluginData(pluginId: string): Promise<void> {
     // Mock implementation
-    this.stateStore.resetPluginMetrics(pluginId)
+    const stateStore = this.getStateStore()
+    if (stateStore) {
+      stateStore.resetPluginMetrics(pluginId)
+    }
     logger.info(`Cleared data for plugin: ${pluginId}`)
   }
 
@@ -494,5 +512,32 @@ export class PluginOperationsService {
   }
 }
 
-// Export singleton instance
+/**
+   * Get state store with lazy loading
+   */
+  private getStateStore(): ReturnType<typeof usePluginStateStore> | null {
+    if (this.stateStore) {
+      return this.stateStore
+    }
+    
+    try {
+      // 检查 Pinia 是否已经激活
+      const { getActivePinia } = require('pinia')
+      const pinia = getActivePinia()
+      
+      if (!pinia) {
+        logger.warn('Pinia not yet activated, state store not available')
+        return null
+      }
+      
+      this.stateStore = usePluginStateStore()
+      return this.stateStore
+    } catch (error) {
+      const appError = handlePluginError('Failed to initialize state store', error)
+      logger.warn('Failed to initialize state store', appError)
+      return null
+    }
+  }
+
+  // Export singleton instance
 export const pluginOperationsService = new PluginOperationsService()

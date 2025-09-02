@@ -15,7 +15,8 @@ import {
   PluginSecurityLevel,
   PluginSecurityIssueType
 } from './health'
-import type { PluginPermissions, PluginPermissionType } from './basic'
+import type { PluginPermissions } from './basic'
+import { PluginPermissionType } from './basic'
 import type { PluginSettingDefinition } from './basic'
 
 /**

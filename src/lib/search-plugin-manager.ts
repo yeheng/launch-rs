@@ -225,7 +225,7 @@ export class SearchPluginManager implements PluginManager {
       this.emit('search:end', sanitizedQuery, cachedResults.length)
       
       // 记录缓存命中到智能缓存系统
-      searchCache.recordSearch('global-search', sanitizedQuery, cachedResults, 1)
+      searchCache.recordSearchMetrics('global-search', sanitizedQuery, cachedResults, 1)
       
       logger.debug(`搜索缓存命中: "${sanitizedQuery}" -> ${cachedResults.length} 个结果`)
       return cachedResults
@@ -318,7 +318,7 @@ export class SearchPluginManager implements PluginManager {
       await searchCache.set('global-search', sanitizedQuery, finalResults, searchTime, { maxResults })
       
       // 记录综合搜索到智能缓存
-      searchCache.recordSearchMetrics('global-search', sanitizedQuery, finalResults.length, searchTime)
+      searchCache.recordSearchMetrics('global-search', sanitizedQuery, finalResults, searchTime)
 
       logger.info(`搜索完成: "${sanitizedQuery}" -> ${finalResults.length} 个结果 (${searchTime}ms)`)
 

@@ -4,6 +4,7 @@
  */
 
 import type { PluginSettingSchema, SearchPlugin } from '../../search-plugins'
+import type { PluginHealthStatus } from './health'
 
 /**
  * Plugin metadata information

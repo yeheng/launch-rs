@@ -161,8 +161,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
-import { useAppMemory } from './memory-integration'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { useAppMemory } from '../../lib/utils/memory-integration'
 
 // 响应式数据
 const isMinimized = ref(false)
@@ -199,7 +199,7 @@ const initializeChart = () => {
 }
 
 // 开始数据更新
-let updateInterval: number
+let updateInterval: any
 const startDataUpdates = () => {
   updateInterval = setInterval(() => {
     updateHealth()

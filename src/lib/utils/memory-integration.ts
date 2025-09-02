@@ -5,8 +5,20 @@
  */
 
 import { globalMemoryMonitor, createMemoryMonitor } from './memory-monitor'
-import { globalLeakDetector, createLeakDetector } from './leak-detector'
-import { globalVueMemoryManager, createVueMemoryManager } from './vue-memory-manager'
+
+// 开发环境专用的内存管理工具
+let leakDetectorModule: any = null
+let vueMemoryManagerModule: any = null
+
+// 动态导入开发工具（仅在开发环境）
+if (process.env.NODE_ENV === 'development') {
+  try {
+    leakDetectorModule = require('../dev-tools/memory/leak-detector')
+    vueMemoryManagerModule = require('../dev-tools/memory/vue-memory-manager')
+  } catch (error) {
+    console.warn('开发环境内存管理工具加载失败:', error)
+  }
+}
 import { logger } from '../logger'
 
 // 检测运行环境
@@ -38,8 +50,10 @@ import { ref, onUnmounted } from 'vue'
 
 // 类型导入
 import type { MemoryMonitor } from './memory-monitor'
-import type { LeakDetector } from './leak-detector'
-import type { VueMemoryManager } from './vue-memory-manager'
+
+// 开发环境工具类型
+type LeakDetector = any
+type VueMemoryManager = any
 
 interface MemoryIntegrationConfig {
   /** 是否启用全局内存监控 */
@@ -74,22 +88,22 @@ interface MemoryHealth {
 export class MemoryIntegration {
   private config: Required<MemoryIntegrationConfig>
   private memoryMonitor?: InstanceType<typeof MemoryMonitor>
-  private leakDetector?: InstanceType<typeof LeakDetector>
-  private vueMemoryManager?: InstanceType<typeof VueMemoryManager>
+  private leakDetector?: LeakDetector
+  private vueMemoryManager?: VueMemoryManager
   private reportTimer?: number
   private health: MemoryHealth
 
   constructor(config: MemoryIntegrationConfig = {}) {
     this.config = {
       enableGlobalMonitor: true,
-      enableLeakDetection: true,
-      enableVueMemoryManager: true,
+      enableLeakDetection: process.env.NODE_ENV === 'development',
+      enableVueMemoryManager: process.env.NODE_ENV === 'development',
       thresholds: {
         warning: 100 * 1024 * 1024, // 100MB
         critical: 200 * 1024 * 1024 // 200MB
       },
       autoReport: true,
-      reportInterval: 60000, // 1分钟
+      reportInterval: process.env.NODE_ENV === 'development' ? 60000 : 300000, // 开发1分钟，生产5分钟
       ...config
     }
 
@@ -146,28 +160,34 @@ export class MemoryIntegration {
         this.memoryMonitor.start()
       }
 
-      // 初始化泄漏检测器
-      if (this.config.enableLeakDetection) {
-        this.leakDetector = createLeakDetector({
-          interval: 30000,
-          deepDetection: true,
-          trackReferences: true
-        })
-
-        this.leakDetector.start()
+      // 初始化泄漏检测器（仅在开发环境）
+      if (this.config.enableLeakDetection && leakDetectorModule) {
+        try {
+          this.leakDetector = leakDetectorModule.createLeakDetector({
+            interval: 30000,
+            deepDetection: true,
+            trackReferences: true
+          })
+          this.leakDetector.start()
+        } catch (error) {
+          console.warn('泄漏检测器初始化失败:', error)
+        }
       }
 
-      // 初始化 Vue 内存管理器
-      if (this.config.enableVueMemoryManager) {
-        this.vueMemoryManager = createVueMemoryManager({
-          trackComponents: true,
-          trackReactive: true,
-          trackWatchers: true,
-          componentThreshold: this.config.thresholds.warning / 10,
-          autoCleanup: true
-        })
-
-        this.vueMemoryManager.start()
+      // 初始化 Vue 内存管理器（仅在开发环境）
+      if (this.config.enableVueMemoryManager && vueMemoryManagerModule) {
+        try {
+          this.vueMemoryManager = vueMemoryManagerModule.createVueMemoryManager({
+            trackComponents: true,
+            trackReactive: true,
+            trackWatchers: true,
+            componentThreshold: this.config.thresholds.warning / 10,
+            autoCleanup: true
+          })
+          this.vueMemoryManager.start()
+        } catch (error) {
+          console.warn('Vue内存管理器初始化失败:', error)
+        }
       }
 
       // 启动自动报告
@@ -486,11 +506,11 @@ export function createMemoryIntegration(config?: MemoryIntegrationConfig): Memor
  * 全局内存管理集成实例
  */
 export const globalMemoryIntegration = createMemoryIntegration({
-  enableGlobalMonitor: process.env.NODE_ENV === 'development',
+  enableGlobalMonitor: true, // 基础监控在生产环境也启用
   enableLeakDetection: process.env.NODE_ENV === 'development',
   enableVueMemoryManager: process.env.NODE_ENV === 'development',
   autoReport: true,
-  reportInterval: 300000 // 5分钟
+  reportInterval: process.env.NODE_ENV === 'development' ? 60000 : 300000 // 开发1分钟，生产5分钟
 })
 
 /**
@@ -556,7 +576,18 @@ export function useAppMemory() {
 
 // 导出便捷函数
 export {
-  globalMemoryMonitor,
-  globalLeakDetector,
-  globalVueMemoryManager
+  globalMemoryMonitor
+}
+
+// 开发环境专用导出
+export let globalLeakDetector: any = null
+export let globalVueMemoryManager: any = null
+
+if (process.env.NODE_ENV === 'development') {
+  if (leakDetectorModule) {
+    globalLeakDetector = leakDetectorModule.globalLeakDetector
+  }
+  if (vueMemoryManagerModule) {
+    globalVueMemoryManager = vueMemoryManagerModule.globalVueMemoryManager
+  }
 }

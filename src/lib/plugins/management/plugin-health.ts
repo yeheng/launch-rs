@@ -15,7 +15,7 @@ import { PluginManagementErrorType, PluginErrors } from './errors'
  * Plugin health and validation service
  */
 export class PluginHealthService {
-  private stateStore = usePluginStateStore()
+  private stateStore: ReturnType<typeof usePluginStateStore> | null = null
 
   /**
    * Check plugin health with comprehensive analysis
@@ -36,7 +36,13 @@ export class PluginHealthService {
         status: 'healthy',
         lastCheck: Date.now(),
         issues: [],
-        metrics: {}
+        metrics: {
+          avgSearchTime: 0,
+          memoryUsage: 0,
+          cpuUsage: 0,
+          errorCount: 0,
+          successRate: 0
+        }
       }
 
       // Basic health check
@@ -82,7 +88,13 @@ export class PluginHealthService {
           message: appError.message,
           suggestedFix: 'Retry health check or contact support'
         }],
-        metrics: {}
+        metrics: {
+          avgSearchTime: 0,
+          memoryUsage: 0,
+          cpuUsage: 0,
+          errorCount: 0,
+          successRate: 0
+        }
       }
     }
   }
@@ -352,9 +364,47 @@ export class PluginHealthService {
     }
   }
 
+  /**
+   * Get state store with lazy loading
+   */
+  private getStateStore(): ReturnType<typeof usePluginStateStore> | null {
+    if (this.stateStore) {
+      return this.stateStore
+    }
+    
+    try {
+      // 检查 Pinia 是否已经激活
+      const { getActivePinia } = require('pinia')
+      const pinia = getActivePinia()
+      
+      if (!pinia) {
+        logger.warn('Pinia not yet activated, state store not available')
+        return null
+      }
+      
+      this.stateStore = usePluginStateStore()
+      return this.stateStore
+    } catch (error) {
+      const appError = handlePluginError('Failed to initialize state store', error)
+      logger.warn('Failed to initialize state store', appError)
+      return null
+    }
+  }
+
   private async checkPerformanceHealth(pluginId: string, healthStatus: PluginHealthStatus): Promise<void> {
     try {
-      const metrics = this.stateStore.getPluginMetrics(pluginId)
+      const stateStore = this.getStateStore()
+      if (!stateStore) {
+        healthStatus.issues.push({
+          type: 'performance',
+          severity: 'medium',
+          message: 'Unable to retrieve performance metrics',
+          suggestedFix: 'Check plugin state management system'
+        })
+        return
+      }
+      
+      const metrics = stateStore.getPluginMetrics(pluginId)
       
       healthStatus.metrics = {
         avgResponseTime: metrics.avgSearchTime,

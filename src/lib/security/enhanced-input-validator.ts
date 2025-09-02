@@ -1,5 +1,6 @@
 /**
- * 增强的输入验证和消毒模块
+ * 增强的输入验证和消毒模块 v2.1
+ * 合并了 enhanced-input-validator.ts 和 enhanced-input-validator-v2.ts 的优点
  * 对搜索查询和用户输入进行安全验证和清理
  */
 
@@ -15,13 +16,28 @@ export interface ValidationResult {
 
 /**
  * 增强的搜索查询验证和消毒
+ * 基于 v2 版本，增强了类型安全性
  */
 export function validateAndSanitizeSearchQuery(query: string): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
-    sanitized: query.trim(),
+    sanitized: '',
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (query === null || query === undefined) {
+    result.isValid = false
+    result.errors.push('搜索查询不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof query !== 'string') {
+    result.isValid = false
+    result.errors.push('搜索查询必须是字符串类型')
+    return result
   }
 
   // 基础检查
@@ -31,6 +47,7 @@ export function validateAndSanitizeSearchQuery(query: string): ValidationResult 
     return result
   }
 
+  result.sanitized = query.trim()
   const trimmed = query.trim()
 
   // 长度检查
@@ -80,20 +97,14 @@ export function validateAndSanitizeSearchQuery(query: string): ValidationResult 
     /\.\.[\/\\]/g,
     /(~\/|\/\.\.)|(\.\.\.\.)/gi,
     /(\/etc\/|\/usr\/|\/bin\/|\/sbin\/|\/var\/)/gi,
-    /(c:\\\\|d:\\\\|e:\\\\|f:\\\\).*\\\\/gi,
+    /[a-zA-Z]:\\[a-zA-Z0-9_\\\$]+/gi,
     /(\/tmp\/|\/var\/tmp\/|\/dev\/)/gi,
     
     // 配置文件和敏感文件访问
     /(\.env|\.git|\.ssh|config\.xml|web\.config|\.htaccess)/gi,
-    /(passwd|shadow|hosts|resolv\.conf)/gi
+    /(passwd|shadow|hosts|resolv\.conf)/gi,
     
-    // LDAP注入 - 暂时禁用
-    // \(\*\)|\(\(\)|\|\|
-    
-    // XPath注入 - 暂时禁用
-    // \/\/\*|\*\/|\/\/\//
-    
-    // 其他危险模式 - 修复正则表达式
+    // 其他危险模式
     /base64_decode/gi,
     /chr\s*\(/gi,
     /ord\s*\(/gi,
@@ -128,13 +139,28 @@ export function validateAndSanitizeSearchQuery(query: string): ValidationResult 
 
 /**
  * 增强的文件路径验证
+ * 基于 v2 版本，增强了类型安全性
  */
 export function validateFilePath(path: string): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
-    sanitized: path.trim(),
+    sanitized: '',
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (path === null || path === undefined) {
+    result.isValid = false
+    result.errors.push('文件路径不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof path !== 'string') {
+    result.isValid = false
+    result.errors.push('文件路径必须是字符串类型')
+    return result
   }
 
   if (!path || path.trim().length === 0) {
@@ -143,6 +169,7 @@ export function validateFilePath(path: string): ValidationResult {
     return result
   }
 
+  result.sanitized = path.trim()
   const trimmed = path.trim()
 
   // 长度检查
@@ -164,7 +191,7 @@ export function validateFilePath(path: string): ValidationResult {
     /\.\.[\/\\]/g,
     /(~\/|\/\.\.)|(\.\.\.\.)/gi,
     /(\/etc\/|\/usr\/|\/bin\/|\/sbin\/|\/var\/)/gi,
-    /(c:\\\\|d:\\\\|e:\\\\|f:\\\\).*\\\\/gi,
+    /[a-zA-Z]:\\[a-zA-Z0-9_\\\$]+/gi,
     /(\/tmp\/|\/var\/tmp\/|\/dev\/)/gi,
     /(\.env|\.git|\.ssh)/gi,
     /(passwd|shadow|hosts|resolv\.conf)/gi
@@ -178,7 +205,7 @@ export function validateFilePath(path: string): ValidationResult {
   }
 
   // 网络路径检查
-  const networkPath = /^\\\\\\w+/i
+  const networkPath = /^\\\\\w+/i
   if (networkPath.test(trimmed)) {
     result.warnings.push('网络路径可能不被支持')
   }
@@ -188,13 +215,28 @@ export function validateFilePath(path: string): ValidationResult {
 
 /**
  * 增强的插件ID验证
+ * 基于 v2 版本，更严格的验证规则
  */
 export function validatePluginId(pluginId: string): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
-    sanitized: pluginId.trim(),
+    sanitized: '',
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (pluginId === null || pluginId === undefined) {
+    result.isValid = false
+    result.errors.push('插件ID不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof pluginId !== 'string') {
+    result.isValid = false
+    result.errors.push('插件ID必须是字符串类型')
+    return result
   }
 
   if (!pluginId || pluginId.trim().length === 0) {
@@ -203,6 +245,7 @@ export function validatePluginId(pluginId: string): ValidationResult {
     return result
   }
 
+  result.sanitized = pluginId.trim()
   const trimmed = pluginId.trim()
 
   // 插件ID格式检查（字母开头，包含字母、数字、下划线、连字符）
@@ -213,17 +256,20 @@ export function validatePluginId(pluginId: string): ValidationResult {
     return result
   }
 
-  // 长度检查
-  if (trimmed.length < 2 || trimmed.length > 50) {
+  // 长度检查 - 使用 v2 的更严格标准
+  if (trimmed.length < 3 || trimmed.length > 50) {
     result.isValid = false
-    result.errors.push('插件ID长度必须在2-50个字符之间')
+    result.errors.push('插件ID长度必须在3-50个字符之间')
     return result
   }
 
-  // 保留字检查
+  // 保留字检查 - 使用 v2 的严格处理
   const reservedWords = ['system', 'admin', 'root', 'core', 'builtin', 'api', 'auth', 'config', 'test']
   if (reservedWords.includes(trimmed.toLowerCase())) {
+    result.isValid = false
+    result.errors.push('插件ID使用了保留字，请选择其他名称')
     result.warnings.push('插件ID使用了保留字，可能会引起冲突')
+    return result
   }
 
   return result
@@ -231,6 +277,7 @@ export function validatePluginId(pluginId: string): ValidationResult {
 
 /**
  * 增强的数学表达式验证
+ * 基于 v2 版本，智能函数白名单检查
  */
 export function validateMathExpression(expression: string): ValidationResult {
   const result: ValidationResult = {
@@ -238,6 +285,20 @@ export function validateMathExpression(expression: string): ValidationResult {
     sanitized: expression.trim(),
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (expression === null || expression === undefined) {
+    result.isValid = false
+    result.errors.push('数学表达式不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof expression !== 'string') {
+    result.isValid = false
+    result.errors.push('数学表达式必须是字符串类型')
+    return result
   }
 
   if (!expression || expression.trim().length === 0) {
@@ -255,17 +316,18 @@ export function validateMathExpression(expression: string): ValidationResult {
   }
 
   // 检查是否包含数学运算符或数字
-  const hasMathContent = /[\d+\-*/().^√πe]|(sin|cos|tan|log|ln|sqrt|abs|floor|ceil|round)/i
+  const hasMathContent = /[\d+\-*/().^√πe]|(sin|cos|tan|log|ln|sqrt|abs|floor|ceil|round|Math\.)/i
   if (!hasMathContent.test(trimmed)) {
     result.warnings.push('表达式似乎不包含数学内容')
   }
 
   // 增强的危险模式检查
   const dangerousPatterns = [
-    // 脚本注入
-    /[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(/, // 函数调用（除了已知的数学函数）
-    /[{}[\]]/, // 代码块
-    /[=;&|]/, // 赋值和逻辑运算符
+    // 代码块
+    /[{}[\]]/,
+    // 赋值和逻辑运算符
+    /[=;&|]/,
+    // 危险函数
     /eval\s*\(/gi,
     /Function\s*\(/gi,
     /setTimeout\s*\(/gi,
@@ -275,12 +337,26 @@ export function validateMathExpression(expression: string): ValidationResult {
     /global\./gi,
     /process\./gi,
     /require\s*\(/gi,
-    /import\s+/gi,
-    
-    // 已知安全函数白名单
-    /^(?!.*(sin|cos|tan|log|ln|sqrt|abs|floor|ceil|round|Math\.)\s*\().*$/
+    /import\s+/gi
   ]
 
+  // 函数调用白名单检查
+  const functionCallPattern = /[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(/g
+  const safeMathFunctions = /^(Math\.)?(sin|cos|tan|asin|acos|atan|sinh|cosh|tanh|log|log10|log2|ln|sqrt|abs|floor|ceil|round|exp|pow|min|max|random|PI|E|SQRT2|SQRT1_2|LN2|LN10|LOG2E|LOG10E)\s*\(/
+  const safeFunctions = /^(sin|cos|tan|asin|acos|atan|sinh|cosh|tanh|log|log10|log2|ln|sqrt|abs|floor|ceil|round|exp|pow|min|max)\s\(/
+
+  // 检查函数调用
+  const functionCalls = trimmed.match(functionCallPattern) || []
+  for (const call of functionCalls) {
+    const cleanCall = call.trim()
+    if (!safeMathFunctions.test(cleanCall) && !safeFunctions.test(cleanCall)) {
+      result.isValid = false
+      result.errors.push(`数学表达式包含危险模式: ${cleanCall}`)
+      break
+    }
+  }
+
+  // 检查其他危险模式
   for (const pattern of dangerousPatterns) {
     if (pattern.test(trimmed)) {
       result.isValid = false
@@ -299,6 +375,7 @@ export function validateMathExpression(expression: string): ValidationResult {
 
 /**
  * 增强的通用输入消毒函数
+ * 基于 v2 版本，增强了类型安全性
  */
 export function sanitizeInput(input: string, options: {
   maxLength?: number
@@ -307,6 +384,16 @@ export function sanitizeInput(input: string, options: {
   trim?: boolean
   allowControlChars?: boolean
 } = {}): string {
+  // 处理null或undefined输入
+  if (input === null || input === undefined) {
+    return ''
+  }
+
+  // 处理非字符串输入
+  if (typeof input !== 'string') {
+    return ''
+  }
+
   let sanitized = input
 
   // 基础清理
@@ -328,8 +415,8 @@ export function sanitizeInput(input: string, options: {
       .replace(/'/g, '&#39;')
   }
 
-  // 脚本清理
-  if (!options.allowScripts) {
+  // 脚本清理 - 如果允许HTML，默认也允许脚本，除非明确禁止
+  if (!options.allowScripts && !options.allowHtml) {
     sanitized = sanitized
       .replace(/javascript:/gi, 'javascript-disabled:')
       .replace(/on\w+\s*=/gi, 'on-disabled=')
@@ -348,13 +435,28 @@ export function sanitizeInput(input: string, options: {
 
 /**
  * 增强的URL验证
+ * 基于 v2 版本，更严格的协议控制
  */
 export function validateUrl(url: string): ValidationResult {
   const result: ValidationResult = {
     isValid: true,
-    sanitized: url.trim(),
+    sanitized: '',
     errors: [],
     warnings: []
+  }
+
+  // 处理null或undefined输入
+  if (url === null || url === undefined) {
+    result.isValid = false
+    result.errors.push('URL不能为null或undefined')
+    return result
+  }
+
+  // 处理非字符串输入
+  if (typeof url !== 'string') {
+    result.isValid = false
+    result.errors.push('URL必须是字符串类型')
+    return result
   }
 
   if (!url || url.trim().length === 0) {
@@ -363,6 +465,7 @@ export function validateUrl(url: string): ValidationResult {
     return result
   }
 
+  result.sanitized = url.trim()
   const trimmed = url.trim()
 
   try {
@@ -381,9 +484,9 @@ export function validateUrl(url: string): ValidationResult {
     }
   }
 
-  // 增强的协议检查
-  const allowedProtocols = ['http:', 'https:', 'ftp:', 'ftps:', 'mailto:', 'tel:', 'data:']
-  const blockedProtocols = ['javascript:', 'vbscript:', 'data:text/html', 'file:', 'about:', 'chrome:', 'moz-extension:']
+  // 增强的协议检查 - 使用 v2 的严格标准
+  const allowedProtocols = ['http:', 'https:', 'mailto:', 'tel:']
+  const blockedProtocols = ['javascript:', 'vbscript:', 'data:', 'ftp:', 'ftps:', 'file:', 'about:', 'chrome:', 'moz-extension:']
   
   const urlObj = new URL(result.sanitized)
   
@@ -417,6 +520,7 @@ export function validateUrl(url: string): ValidationResult {
 
 /**
  * 增强的输入验证器类
+ * 提供统一的静态方法接口
  */
 export class InputValidator {
   /**

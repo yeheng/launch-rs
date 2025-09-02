@@ -640,7 +640,10 @@ import type {
   PluginPermissionType,
   PluginStatistics
 } from '@/lib/plugins/types'
-import { PluginCategory, PluginUtils } from '@/lib/plugins/types'
+import {
+  PluginCategory,
+  PluginUtils
+} from '@/lib/plugins/types'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 const { breadcrumbItems, navigateHome } = useNavigation()

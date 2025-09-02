@@ -5,7 +5,7 @@
  */
 
 import { ref, reactive, onUnmounted, type UnwrapRef, defineComponent, h } from 'vue'
-import { MemoryMonitor as BaseMemoryMonitor, type MemoryLeak } from './memory-monitor'
+import { MemoryMonitor as BaseMemoryMonitor, type MemoryLeak } from '../../utils/memory-monitor'
 import { LeakDetector } from './leak-detector'
 
 interface VueMemoryConfig {

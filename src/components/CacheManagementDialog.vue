@@ -339,7 +339,6 @@ import {
   RefreshCw,
   Zap,
   TrendingUp,
-  Crystal,
   Activity,
   Plus
 } from 'lucide-vue-next'

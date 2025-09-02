@@ -13,7 +13,7 @@ import { PluginManagementErrorType, PluginErrors } from './errors'
  * Plugin configuration service
  */
 export class PluginConfigurationService {
-  private stateStore = usePluginStateStore()
+  private stateStore: ReturnType<typeof usePluginStateStore> | null = null
 
   /**
    * Update plugin configuration
@@ -104,7 +104,8 @@ export class PluginConfigurationService {
       }
 
       // Get configuration from state store
-      const config = this.stateStore.getPluginConfig(pluginId)
+      const stateStore = this.getStateStore()
+      const config = stateStore ? stateStore.getPluginConfig(pluginId) : {}
       
       // Add plugin metadata
       const fullConfig = {
@@ -150,7 +151,10 @@ export class PluginConfigurationService {
       }
 
       // Clear custom configuration from state store
-      this.stateStore.setPluginConfig(pluginId, {})
+      const stateStore = this.getStateStore()
+      if (stateStore) {
+        stateStore.setPluginConfig(pluginId, {})
+      }
 
       logger.info(`Successfully reset configuration for plugin: ${pluginId}`)
       
@@ -417,7 +421,10 @@ export class PluginConfigurationService {
         await pluginManager.disablePlugin(pluginId)
       }
 
-      this.stateStore.setPluginEnabled(pluginId, enabled)
+      const stateStore = this.getStateStore()
+      if (stateStore) {
+        stateStore.setPluginEnabled(pluginId, enabled)
+      }
       
       logger.info(`Plugin ${pluginId} ${enabled ? 'enabled' : 'disabled'}`)
 
@@ -470,7 +477,10 @@ export class PluginConfigurationService {
   }
 
   private async savePluginConfiguration(pluginId: string, config: Record<string, any>): Promise<void> {
-    this.stateStore.setPluginConfig(pluginId, config)
+    const stateStore = this.getStateStore()
+    if (stateStore) {
+      stateStore.setPluginConfig(pluginId, config)
+    }
   }
 
   private extractDefaultSettings(schema: any[]): Record<string, any> {
@@ -557,5 +567,32 @@ export class PluginConfigurationService {
   }
 }
 
-// Export singleton instance
+/**
+   * Get state store with lazy loading
+   */
+  private getStateStore(): ReturnType<typeof usePluginStateStore> | null {
+    if (this.stateStore) {
+      return this.stateStore
+    }
+    
+    try {
+      // 检查 Pinia 是否已经激活
+      const { getActivePinia } = require('pinia')
+      const pinia = getActivePinia()
+      
+      if (!pinia) {
+        logger.warn('Pinia not yet activated, state store not available')
+        return null
+      }
+      
+      this.stateStore = usePluginStateStore()
+      return this.stateStore
+    } catch (error) {
+      const appError = handlePluginError('Failed to initialize state store', error)
+      logger.warn('Failed to initialize state store', appError)
+      return null
+    }
+  }
+
+  // Export singleton instance
 export const pluginConfigurationService = new PluginConfigurationService()
