@@ -1,7 +1,7 @@
 import { vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import type { EnhancedSearchPlugin } from '@/lib/plugins/types'
-import { PluginCategory, PluginPermissionType, PluginUtils } from '@/lib/plugins/types'
+import type { EnhancedSearchPlugin } from '@/lib/plugins'
+import { PluginCategory, PluginPermissionType, PluginUtils } from '@/lib/plugins'
 
 /**
  * 测试工具函数集合

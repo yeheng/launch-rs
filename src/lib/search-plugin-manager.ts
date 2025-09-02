@@ -6,12 +6,11 @@ import type {
   SearchResultItem
 } from './search-plugins'
 import { useUnifiedStateStore, unifiedStateListener } from './state/unified-state-manager'
-import type { EnhancedSearchPlugin, PluginCategory } from './plugins/types'
+import type { EnhancedSearchPlugin, PluginCategory } from './plugins'
 import { logger } from './logger'
 import { handlePluginError } from './error-handler'
 import { InputValidator } from './security/input-validator'
 import { searchCache, withSearchCache } from './cache/search-cache'
-import { intelligentCache } from './cache/intelligent-cache'
 
 /**
  * 搜索插件管理器实现
@@ -226,7 +225,7 @@ export class SearchPluginManager implements PluginManager {
       this.emit('search:end', sanitizedQuery, cachedResults.length)
       
       // 记录缓存命中到智能缓存系统
-      intelligentCache.recordSearch('global-search', sanitizedQuery, cachedResults, 1)
+      searchCache.recordSearch('global-search', sanitizedQuery, cachedResults, 1)
       
       logger.debug(`搜索缓存命中: "${sanitizedQuery}" -> ${cachedResults.length} 个结果`)
       return cachedResults
@@ -294,7 +293,7 @@ export class SearchPluginManager implements PluginManager {
           }
           
           // 记录到智能缓存系统
-          intelligentCache.recordSearch(plugin.id, sanitizedQuery, pluginResults, pluginSearchTime)
+          searchCache.recordSearchMetrics(plugin.id, sanitizedQuery, pluginResults, pluginSearchTime)
         }
 
         return pluginResults
@@ -319,7 +318,7 @@ export class SearchPluginManager implements PluginManager {
       await searchCache.set('global-search', sanitizedQuery, finalResults, searchTime, { maxResults })
       
       // 记录综合搜索到智能缓存
-      intelligentCache.recordSearch('global-search', sanitizedQuery, finalResults, searchTime)
+      searchCache.recordSearchMetrics('global-search', sanitizedQuery, finalResults.length, searchTime)
 
       logger.info(`搜索完成: "${sanitizedQuery}" -> ${finalResults.length} 个结果 (${searchTime}ms)`)
 
@@ -698,7 +697,6 @@ export class SearchPluginManager implements PluginManager {
 
     // 清理缓存
     searchCache.destroy()
-    intelligentCache.destroy()
 
     logger.info('插件管理器已销毁')
   }
@@ -709,7 +707,7 @@ export class SearchPluginManager implements PluginManager {
   getCacheStatistics() {
     return {
       searchCache: searchCache.getStatistics(),
-      intelligentCache: intelligentCache.getLearningReport()
+      intelligentCache: searchCache.getLearningReport()
     }
   }
 
@@ -765,7 +763,7 @@ export class SearchPluginManager implements PluginManager {
           return
         }
 
-        await intelligentCache.intelligentWarmup(pluginId, async (query) => {
+        await searchCache.intelligentWarmup(pluginId, async (query) => {
           const context = this.createSearchContext(query)
           return await plugin.search(context)
         })
@@ -775,7 +773,7 @@ export class SearchPluginManager implements PluginManager {
         // 预热所有启用的插件
         const enabledPlugins = this.getEnabledPlugins()
         for (const plugin of enabledPlugins) {
-          await intelligentCache.intelligentWarmup(plugin.id, async (query) => {
+          await searchCache.intelligentWarmup(plugin.id, async (query) => {
             const context = this.createSearchContext(query)
             return await plugin.search(context)
           })
@@ -793,21 +791,21 @@ export class SearchPluginManager implements PluginManager {
    * 获取缓存策略建议
    */
   async getCacheStrategy(pluginId: string, query: string, results: SearchResultItem[]) {
-    return await intelligentCache.getCacheStrategy(pluginId, query, results)
+    return await searchCache.getCacheStrategy(pluginId, query, results)
   }
 
   /**
    * 预测热门查询
    */
   async predictHotQueries(pluginId?: string) {
-    return await intelligentCache.predictHotQueries(pluginId)
+    return await searchCache.predictHotQueries(pluginId)
   }
 
   /**
    * 清除学习数据
    */
   clearLearningData(): void {
-    intelligentCache.clearLearningData()
+    searchCache.clearLearningData()
     logger.info('智能缓存学习数据已清除')
   }
 }

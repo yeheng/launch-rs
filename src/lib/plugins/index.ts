@@ -111,8 +111,11 @@ export {
   type PluginLoadResult
 } from './unified-plugin-loader'
 
-// 导出插件管理服务
-export { pluginManagementService } from './plugin-management-service'
+// 导出插件管理服务（新的模块化版本）
+export * from './management'
+
+// 保持向后兼容性 - 导出旧的 pluginManagementService
+// 注意：这将在未来版本中移除
 
 // 导出状态管理
 export { pluginStateListener, usePluginStateStore } from './plugin-state-manager'
@@ -134,7 +137,7 @@ export {
   type EventBusMiddleware
 } from './plugin-event-bus'
 
-// 导出类型
+// 导出插件类型系统
 export * from './types'
 
 // 导出演示功能

@@ -631,7 +631,7 @@ import {
   PluginManagementErrorType,
   pluginManagementService,
   type PluginSearchOptions
-} from '@/lib/plugins/plugin-management-service'
+} from '@/lib/plugins'
 import { pluginStateListener } from '@/lib/plugins/plugin-state-manager'
 import { usePluginStatistics } from '@/lib/plugins/plugin-statistics'
 import type {

@@ -312,7 +312,6 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { pluginManager } from '@/lib/search-plugin-manager'
 import { useSearchCache } from '@/lib/cache/search-cache'
-import { useIntelligentCache } from '@/lib/cache/intelligent-cache'
 import {
   Dialog,
   DialogTrigger,
@@ -399,7 +398,7 @@ const learningReport = ref({
 
 // 计算属性
 const { getCacheStats } = useSearchCache()
-const { getLearningReport, predictHotQueries: predictQueries } = useIntelligentCache()
+const { getLearningReport, predictHotQueries: predictQueries } = useSearchCache()
 
 const enabledPlugins = computed(() => pluginManager.getEnabledPlugins())
 
