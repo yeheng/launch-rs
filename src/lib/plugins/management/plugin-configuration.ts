@@ -2,12 +2,12 @@
  * Plugin configuration management functionality
  */
 
+import { handlePluginError } from '../../error-handler'
+import { logger } from '../../logger'
 import { pluginManager } from '../../search-plugin-manager'
 import { usePluginStateStore } from '../plugin-state-manager'
-import { logger } from '../../logger'
-import { handlePluginError } from '../../error-handler'
+import { PluginErrors, PluginManagementErrorType, createPluginManagementError } from './errors'
 import type { PluginConfigurationUpdateOptions } from './interfaces'
-import { PluginManagementErrorType, PluginErrors } from './errors'
 
 /**
  * Plugin configuration service
@@ -43,7 +43,7 @@ export class PluginConfigurationService {
       }
 
       // Update permissions (if supported)
-      if (config.permissions && plugin.permissions) {
+      if (config.permissions && 'permissions' in plugin) {
         await this.updatePluginPermissions(pluginId, config.permissions)
         updates.permissions = config.permissions
       }
@@ -80,11 +80,10 @@ export class PluginConfigurationService {
       
       return {
         success: false,
-        error: new PluginManagementErrorType(
+        error: createPluginManagementError(
           PluginManagementErrorType.CONFIGURATION_ERROR,
           appError.message,
-          appError.details,
-          pluginId
+          { details: appError.details, pluginId }
         )
       }
     }
@@ -112,8 +111,8 @@ export class PluginConfigurationService {
         id: pluginId,
         enabled: plugin.enabled,
         settings: plugin.settings ? { ...plugin.settings.values } : {},
-        permissions: plugin.permissions || [],
-        metadata: plugin.metadata || {},
+        permissions: ('permissions' in plugin) ? plugin.permissions : [],
+        metadata: ('metadata' in plugin) ? plugin.metadata : {},
         customConfig: config || {},
         lastUpdated: Date.now()
       }
@@ -172,11 +171,10 @@ export class PluginConfigurationService {
       
       return {
         success: false,
-        error: new PluginManagementErrorType(
+        error: createPluginManagementError(
           PluginManagementErrorType.CONFIGURATION_ERROR,
           appError.message,
-          appError.details,
-          pluginId
+          { details: appError.details, pluginId }
         )
       }
     }
@@ -261,11 +259,10 @@ export class PluginConfigurationService {
       
       return {
         success: false,
-        error: new PluginManagementErrorType(
+        error: createPluginManagementError(
           PluginManagementErrorType.CONFIGURATION_ERROR,
           appError.message,
-          appError.details,
-          pluginId
+          { details: appError.details, pluginId }
         )
       }
     }
@@ -397,7 +394,7 @@ export class PluginConfigurationService {
       
       return {
         success: false,
-        error: new PluginManagementErrorType(
+        error: createPluginManagementError(
           PluginManagementErrorType.CONFIGURATION_ERROR,
           appError.message
         )
@@ -461,7 +458,7 @@ export class PluginConfigurationService {
 
   private async updatePluginPermissions(pluginId: string, permissions: string[]): Promise<void> {
     const plugin = pluginManager.getPlugin(pluginId)
-    if (!plugin) return
+    if (!plugin || !('permissions' in plugin)) return
 
     // Validate permissions
     const validPermissions = this.validatePermissions(permissions)
@@ -470,10 +467,10 @@ export class PluginConfigurationService {
 
   private async updatePluginMetadata(pluginId: string, metadata: Record<string, any>): Promise<void> {
     const plugin = pluginManager.getPlugin(pluginId)
-    if (!plugin || !plugin.metadata) return
+    if (!plugin || !('metadata' in plugin)) return
 
     // Update metadata
-    Object.assign(plugin.metadata, metadata)
+    Object.assign(plugin.metadata as Record<string, any>, metadata)
   }
 
   private async savePluginConfiguration(pluginId: string, config: Record<string, any>): Promise<void> {
@@ -565,9 +562,8 @@ export class PluginConfigurationService {
       typeof backup.configurations === 'object'
     )
   }
-}
 
-/**
+  /**
    * Get state store with lazy loading
    */
   private getStateStore(): ReturnType<typeof usePluginStateStore> | null {
@@ -593,6 +589,7 @@ export class PluginConfigurationService {
       return null
     }
   }
+}
 
-  // Export singleton instance
+// Export singleton instance
 export const pluginConfigurationService = new PluginConfigurationService()

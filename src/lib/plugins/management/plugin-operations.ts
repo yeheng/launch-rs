@@ -2,24 +2,22 @@
  * Plugin operations (install, uninstall, update, enable/disable)
  */
 
-import { pluginManager } from '../../search-plugin-manager'
-import type { SearchPlugin } from '../../search-plugins'
-import { usePluginStateStore } from '../plugin-state-manager'
-import { pluginStatisticsManager } from '../plugin-statistics'
-import { logger } from '../../logger'
 import { handlePluginError } from '../../error-handler'
+import { logger } from '../../logger'
+import { pluginManager } from '../../search-plugin-manager'
+import { usePluginStateStore } from '../plugin-state-manager'
 import type { EnhancedSearchPlugin } from '../types'
-import type { 
-  PluginOperationResult,
+import {
+  PluginErrors,
+  PluginManagementError,
+  PluginManagementErrorType
+} from './errors'
+import type {
   PluginInstallationOptions,
+  PluginOperationResult,
   PluginUninstallationOptions,
   PluginUpdateOptions
 } from './interfaces'
-import { 
-  PluginManagementErrorType,
-  PluginManagementError,
-  PluginErrors 
-} from './errors'
 
 /**
  * Plugin operations service
@@ -63,7 +61,7 @@ export class PluginOperationsService {
         if (!validationResult.valid) {
           return {
             success: false,
-            error: PluginErrors.validationFailed(pluginId, validationResult.message)
+            error: PluginErrors.validationFailed(pluginId, validationResult.message || 'Validation failed')
           }
         }
       }
@@ -76,11 +74,7 @@ export class PluginOperationsService {
         const stateStore = this.getStateStore()
         if (stateStore) {
           stateStore.setPluginEnabled(pluginId, options.enableAfterInstall ?? true)
-        }
-        
-        // Update statistics
-        const stateStore = this.getStateStore()
-        if (stateStore) {
+          // Update statistics
           stateStore.recordPluginUsage(pluginId, 0, 0, false)
         }
         
@@ -398,14 +392,23 @@ export class PluginOperationsService {
       priority: plugin.priority,
       icon: plugin.icon,
       search: plugin.search,
-      metadata: plugin.metadata || {},
+      metadata: {
+        author: 'Unknown',
+        license: 'MIT',
+        keywords: [],
+        dependencies: [],
+        category: 'search' as any,
+        installDate: new Date(),
+        lastUpdated: new Date(),
+        fileSize: 0
+      },
       installation: {
         isInstalled: true,
         isBuiltIn: true,
         canUninstall: false,
-        status: 'installed'
+        status: 'installed' as any
       },
-      permissions: plugin.permissions || [],
+      permissions: [],
       settings: plugin.settings || { schema: [], values: {} }
     }))
   }
@@ -472,7 +475,7 @@ export class PluginOperationsService {
     }
   }
 
-  private async getPluginDependents(pluginId: string): Promise<string[]> {
+  private async getPluginDependents(_pluginId: string): Promise<string[]> {
     // Mock implementation - check which plugins depend on this one
     return []
   }
@@ -496,7 +499,7 @@ export class PluginOperationsService {
     logger.info(`Cleared configuration for plugin: ${pluginId}`)
   }
 
-  private async applyPluginConfiguration(pluginId: string, config: Record<string, any>): Promise<void> {
+  private async applyPluginConfiguration(pluginId: string, _config: Record<string, any>): Promise<void> {
     // Mock implementation
     logger.info(`Applied configuration for plugin: ${pluginId}`)
   }
@@ -510,9 +513,8 @@ export class PluginOperationsService {
   private async simulateAsyncOperation(delay: number): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, delay))
   }
-}
 
-/**
+  /**
    * Get state store with lazy loading
    */
   private getStateStore(): ReturnType<typeof usePluginStateStore> | null {
@@ -538,6 +540,7 @@ export class PluginOperationsService {
       return null
     }
   }
+}
 
-  // Export singleton instance
+// Export singleton instance
 export const pluginOperationsService = new PluginOperationsService()

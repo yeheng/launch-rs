@@ -11,9 +11,7 @@
 export type {
   PluginMetadata,
   PluginInstallation,
-  PluginInstallationStatus,
   PluginPermissions,
-  PluginPermissionType,
   EnhancedSearchPlugin,
   PluginConfigurationSchema,
   PluginSettingDefinition,
